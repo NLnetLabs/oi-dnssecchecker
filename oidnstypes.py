@@ -275,6 +275,70 @@ class OI_NSEC3_rec(OI_DNS_rec):
 		return '{} IN NSEC3 {} {} {} {} {} {}'.format(self.fqdn, self.hash_algorithm, self.flags, self.iterations, salt_str, base32hex.b32encode(self.next_hash[1:]).upper().strip('='), owner_types_str)
 
 ##
+# Class for SOA records
+##
+
+class OI_SOA_rec(OI_DNS_rec):
+	mname	= None
+	rname	= None
+	serial	= None
+	refresh	= None
+	retry	= None
+	expire	= None
+	minimum	= None
+
+	def __init__(self, fqdn, mname, rname, serial, refresh, retry, expire, minimum):
+		super(OI_SOA_rec, self).__init__(fqdn)
+		self.mname	= mname
+		self.rname	= rname
+		self.serial	= serial
+		self.refresh	= refresh
+		self.retry	= retry
+		self.expire	= expire
+		self.minimum	= minimum
+
+	def __str__(self):
+		return '{} IN SOA {} {} {} {} {} {} {}'.format(self.fqdn, self.mname, self.rname, self.serial, self.refresh, self.retry, self.expire, self.minimum)
+
+##
+# Class for CAA records
+##
+
+class OI_CAA_rec(OI_DNS_rec):
+	flags	= None
+	tag	= None
+	value	= None
+
+	def __init__(self, fqdn, flags, tag, value):
+		super(OI_CAA_rec, self).__init__(fqdn)
+		self.flags	= flags
+		self.tag	= tag
+		self.value	= value
+
+	def __str__(self):
+		return '{} IN CAA {} {} {}'.format(self.fqdn, self.flags, self.tag, self.value)
+
+##
+# Class for TLSA records
+##
+
+class OI_TLSA_rec(OI_DNS_rec):
+	usage		= None
+	selector	= None
+	matchtype	= None
+	certdata	= None
+
+	def __init__(self, fqdn, usage, selector, matchtype, certdata):
+		super(OI_TLSA_rec, self).__init__(fqdn)
+		self.usage	= usage
+		self.selector	= selector
+		self.matchtype	= matchtype
+		self.certdata	= bytes.fromhex(certdata)
+
+	def __str__(self):
+		return '{} IN TLSA {} {} {} {}'.format(self.fqdn, self.usage, self.selector, self.matchtype, self.certdata.hex())
+
+##
 # Class for RRSIG records
 ##
 
@@ -345,7 +409,13 @@ def avro_rec_to_dnstype(avrorec):
 		return OI_NSEC_rec(avrorec['response_name'], avrorec['nsec_next_domain_name'], avrorec['nsec_owner_rrset_types'])
 	elif avrorec['response_type'] == 'NSEC3':
 		return OI_NSEC3_rec(avrorec['response_name'], avrorec['nsec3_hash_algorithm'], avrorec['nsec3_flags'], avrorec['nsec3_iterations'], avrorec['nsec3_salt'], avrorec['nsec3_next_domain_name_hash'], avrorec['nsec3_owner_rrset_types'])
-	elif avrorec['response_type'] in ['NSHASH', 'SPFHASH', 'TXTHASH', 'MXHASH']:
+	elif avrorec['response_type'] == 'SOA':
+		return OI_SOA_rec(avrorec['response_name'], avrorec['soa_mname'], avrorec['soa_rname'], avrorec['soa_serial'], avrorec['soa_refresh'], avrorec['soa_retry'], avrorec['soa_expire'], avrorec['soa_minimum'])
+	elif avrorec['response_type'] == 'CAA':
+		return OI_CAA_rec(avrorec['response_name'], avrorec['caa_flags'], avrorec['caa_tag'], avrorec['caa_value'])
+	elif avrorec['response_type'] == 'TLSA':
+		return OI_TLSA_rec(avrorec['response_name'], avrorec['tlsa_usage'], avrorec['tlsa_selector'], avrorec['tlsa_matchtype'], avrorec['tlsa_certdata'])
+	elif avrorec['response_type'] in ['NSHASH', 'SPFHASH', 'TXTHASH', 'MXHASH', 'SPF', 'NSEC3PARAM' ]:
 		return None
 	else:
 		print('Unknown record type {} for name {}'.format(avrorec['response_type'], avrorec['response_name']))
