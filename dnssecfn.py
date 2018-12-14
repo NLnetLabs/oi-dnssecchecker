@@ -92,7 +92,7 @@ def verify_sig(rrset, dnskeyset, rrsig):
 
 	# Do the verification
 	verify_pass = False
-	reason = "Could not verify signature with any of the provided DNSKEYs"
+	reason = "Could not verify signature with any of the provided DNSKEYs [{}]".format(','.join(str(k.keytag()) for k in matching_keys))
 
 	for key in matching_keys:
 		if key.algorithm in [ 5, 7, 8, 10 ]:

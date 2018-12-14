@@ -83,6 +83,8 @@ def check_dnskey_props(fqdn, rec_dict, result_dict):
 	if 13 in algo_set or 14 in algo_set or 15 in algo_set or 16 in algo_set:
 		result_dict["dnssec_keysize_ok"] = True
 
+	return True
+
 ##
 # Check if the domain is DNSSEC signed at all
 #
@@ -108,6 +110,8 @@ def check_is_dnssec_signed(fqdn, rec_dict, result_dict):
 		result_dict['has_dnssec'] = True
 	else:
 		result_dict['has_dnssec'] = False
+
+	return has_dnskey
 
 ##
 # Check if the domain has one or more DS records and if these
@@ -149,7 +153,9 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict):
 
 			if dnskey_hash == ds.digest:
 				result_dict['has_secure_delegation'] = True
-				break
+				return True
+
+	return False
 
 ##
 # Verify the signature(s) on the DNSKEY set
@@ -201,14 +207,16 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
 	result_dict['dnskey_sig_verifies'] = True
 	result_dict['dnskey_sig_reason'] = reason
 
+	return True
+
 ##
 # Active checks
 ##
 
 active_checks = []
-active_checks.append(check_dnskey_props)
 active_checks.append(check_is_dnssec_signed)
 active_checks.append(check_has_secure_delegation)
+active_checks.append(check_dnskey_props)
 active_checks.append(check_dnskey_sig_verify)
 
 ##
@@ -231,7 +239,8 @@ def domain_data_callback(fqdn, rec_dict):
 	fqdn_result_dict = dict()
 
 	for check in active_checks:
-		check(fqdn, rec_dict, fqdn_result_dict)
+		if not check(fqdn, rec_dict, fqdn_result_dict):
+			break
 
 	print('{}: {}'.format(fqdn, fqdn_result_dict))
 
