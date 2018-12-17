@@ -8,6 +8,7 @@
 
 import oidnstypes
 import hashlib
+import functools
 from Crypto.PublicKey import RSA		#--+
 from Crypto.Signature import PKCS1_v1_5		#  |
 import Crypto.Hash				#  |-> for RSA validation
@@ -19,15 +20,13 @@ import nacl.encoding				#--+-> for Ed25519 validation
 import nacl.signing				#--+
 import eddsa_rfc8032				#----> for Ed448 validation
 
-# NB:
-# edgold is not available through PIP and requires the
-# following steps to install:
-#
-# - clone https://github.com/otrv4/libgoldilocks
-# - follow build instructions and install
-# - go to "python" subdir
-# - edit "setup.py" and replace "gmake" by "make"
-# - run "python setup.py install"
+##
+# Configuration
+##
+
+# Time to add to the expiration time of signatures when 
+# validating
+signature_grace_time = 7200
 
 ##
 # Convert a domain name to a binary-encoded owner name
@@ -65,6 +64,13 @@ def verify_sig(rrset, dnskeyset, rrsig):
 	if type(rrsig) is not oidnstypes.OI_RRSIG_rec:
 		raise Exception("Can only verify RRSIG records")
 
+	# Check expiration first
+	if rrsig.timestamp < rrsig.inception - signature_grace_time:
+		return False, "RRSIG is not yet valid (timestamp {}, inception {})".format(rrsig.timestamp, rrsig.inception)
+
+	if rrsig.timestamp > rrsig.expiration + signature_grace_time:
+		return False, "RRSIG has expired (timestamp {}, expiration {})".format(rrsig.timestamp, rrsig.expiration)
+
 	# Start by collecting DNSKEYs that match the RRSIG's key tag
 	matching_keys = []
 
@@ -89,19 +95,19 @@ def verify_sig(rrset, dnskeyset, rrsig):
 		wire += bytes.fromhex('0001') # Always use class IN
 		wire += bytes.fromhex('%08X' % rrsig.original_ttl)
 		wire += bytes.fromhex('%04X' % len(recwire))
-		wire += recwire
 
-		wire_rrset.append(wire)
+		wire_rrset.append((wire, recwire))
 
 	# Canonically order the RRset
-	wire_rrset.sort()
+	wire_rrset.sort(key=lambda x: x[1])
 
 	# Construct the signature verification data
 	sig_input_data = bytes()
 	sig_input_data += rrsig.verification_data()
 
-	for recwire in wire_rrset:
-		sig_input_data += recwire
+	for wire,rdata in wire_rrset:
+		sig_input_data += wire
+		sig_input_data += rdata
 
 	# Do the verification
 	verify_pass = False

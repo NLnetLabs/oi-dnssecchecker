@@ -75,7 +75,7 @@ class OI_DNS_rec:
 		self.rectype	= rectype
 
 	def set_timestamp(self, ts):
-		self.timestamp = ts / 1000
+		self.timestamp = int(ts / 1000)
 
 	def towire(self):
 		raise Exception("towire() not implemented for {}".format(type(self)))

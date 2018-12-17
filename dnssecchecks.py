@@ -160,8 +160,8 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict):
 ##
 # Verify the signature(s) on the DNSKEY set
 #
-# This test passes if _all_ signatures on the DNSKEY set can be
-# verified using one of the keys in the DNSKEY set
+# This test passes if there is a valid RRSIG with
+# every algorithm in the DNSKEY set.
 ##
 
 def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
@@ -175,6 +175,7 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
 
 	dnskey_rrsigs = []
 	dnskey_dnskeys = []
+	dnskey_algorithms = set()
 
 	for rec in dnskey_set:
 		if type(rec) is oidnstypes.OI_RRSIG_rec:
@@ -182,6 +183,7 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
 
 		if type(rec) is oidnstypes.OI_DNSKEY_rec:
 			dnskey_dnskeys.append(rec)
+			dnskey_algorithms.add(rec.algorithm)
 
 	if len(dnskey_rrsigs) == 0:
 		result_dict["dnskey_sig_reason"] = "DNSKEY RRset does not contain RRSIG record(s)"
@@ -194,23 +196,22 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
 	succ = False
 	reason = ""
 
+	valid_algorithms = set()
+
 	for rrsig in dnskey_rrsigs:
 		succ, reason = dnssecfn.verify_sig(dnskey_dnskeys, dnskey_dnskeys, rrsig)
 
-		if not succ:
-			break
+		if succ:
+			valid_algorithms.add(rrsig.algorithm)
+		else:
+			print('Warning: failed to validate RRSIG for DNSKEY set of {} with reason <<{}>>'.format(rrsig.fqdn, reason))
 
-	# TODO: check for valid signatures with all algorithms; not all sigs have to validate,
-	#       but there should at least be one valid signature for each algorithm
-
-	# TODO: check signature expiration
-
-	if not succ:
-		result_dict["dnskey_sig_reason"] = reason
+	if valid_algorithms != dnskey_algorithms:
+		result_dict["dnskey_sig_reason"] = "Did not find a valid RRSIG with every algorithm for DNSKEY set of {} (expecting {}, got {})".format(rrsig.fqdn, dnskey_algorithms, valid_algorithms)
 		return
 
 	result_dict['dnskey_sig_verifies'] = True
-	result_dict['dnskey_sig_reason'] = reason
+	result_dict['dnskey_sig_reason'] = "Found at least one valid RRSIG for every algorithm in the DNSKEY set of {}".format(rrsig.fqdn)
 
 	return True
 
