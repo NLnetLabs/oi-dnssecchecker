@@ -200,6 +200,11 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
 		if not succ:
 			break
 
+	# TODO: check for valid signatures with all algorithms; not all sigs have to validate,
+	#       but there should at least be one valid signature for each algorithm
+
+	# TODO: check signature expiration
+
 	if not succ:
 		result_dict["dnskey_sig_reason"] = reason
 		return

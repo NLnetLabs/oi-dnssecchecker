@@ -8,13 +8,26 @@
 
 import oidnstypes
 import hashlib
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
-import Crypto.Hash
-import Crypto.Hash.SHA
-import Crypto.Hash.SHA256
-import Crypto.Hash.SHA512
-import ecdsa
+from Crypto.PublicKey import RSA		#--+
+from Crypto.Signature import PKCS1_v1_5		#  |
+import Crypto.Hash				#  |-> for RSA validation
+import Crypto.Hash.SHA				#  |
+import Crypto.Hash.SHA256			#  |
+import Crypto.Hash.SHA512			#--+
+import ecdsa					#----> for ECDSA validation
+import nacl.encoding				#--+-> for Ed25519 validation
+import nacl.signing				#--+
+import eddsa_rfc8032				#----> for Ed448 validation
+
+# NB:
+# edgold is not available through PIP and requires the
+# following steps to install:
+#
+# - clone https://github.com/otrv4/libgoldilocks
+# - follow build instructions and install
+# - go to "python" subdir
+# - edit "setup.py" and replace "gmake" by "make"
+# - run "python setup.py install"
 
 ##
 # Convert a domain name to a binary-encoded owner name
@@ -133,9 +146,27 @@ def verify_sig(rrset, dnskeyset, rrsig):
 					break
 			except:
 				pass
-		elif key.algorithm in [ 15, 16 ]:
-			# Perform EdDSA verification
-			pass
+		elif key.algorithm in [ 15 ]:
+			# Perform Ed25519 verification
+			vk = nacl.signing.VerifyKey(key.eddsa_a, encoder=nacl.encoding.RawEncoder)
+
+			try:
+				if vk.verify(sig_input_data, rrsig.signature, encoder=nacl.encoding.RawEncoder):
+					verify_pass = True
+					reason = "Signature validated OK"
+					break
+			except:
+				pass
+		elif key.algorithm in [ 16 ]:
+			ed448_schema = eddsa_rfc8032.eddsa_obj("Ed448")
+
+			try:
+				if ed448_schema.verify(key.eddsa_a, sig_input_data, rrsig.signature):
+					verify_pass = True
+					reason = "Signature validated OK"
+					break
+			except:
+				pass
 		else:
 			print('Warning: skipped signature validation of record for {} because algorithm {} is not supported'.format(rrset[0].fqdn, key.algorithm))
 
