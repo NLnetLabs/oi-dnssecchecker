@@ -390,6 +390,14 @@ class OI_SOA_rec(OI_DNS_rec):
 	def __str__(self):
 		return '{} IN SOA {} {} {} {} {} {} {}'.format(self.fqdn, self.mname, self.rname, self.serial, self.refresh, self.retry, self.expire, self.minimum)
 
+	def towire(self):
+		wire = bytes()
+		wire += dnssecfn.str_to_owner(self.mname)
+		wire += dnssecfn.str_to_owner(self.rname)
+		wire += bytes.fromhex('%08X%08X%08X%08X%08X' % (self.serial, self.refresh, self.retry, self.expire, self.minimum))
+
+		return wire
+
 ##
 # Class for CAA records
 ##

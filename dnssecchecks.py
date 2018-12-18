@@ -127,7 +127,7 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict):
 
 	# Exit early if there is no DS or no DNSKEY
 	if (fqdn, 'DS') not in rec_dict or (fqdn, 'DNSKEY') not in rec_dict:
-		return
+		return True
 
 	for ds in rec_dict[(fqdn, 'DS')]:
 		if type(ds) is not oidnstypes.OI_DS_rec:
@@ -155,7 +155,70 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict):
 				result_dict['has_secure_delegation'] = True
 				return True
 
-	return False
+	return True
+
+##
+# Verify the signature(s) on an RRset
+#
+# This test passes if there is a valid RRSIG with
+# every algorithm in the DNSKEY set.
+##
+
+def verify_signatures(fqdn, rec_dict, result_dict, rrset, verify_key, reason_key):
+	result_dict[verify_key] = False
+	result_dict[reason_key] = "Domain does not have a DNSKEY set"
+
+	if (fqdn, 'DNSKEY') not in rec_dict:
+		return True
+
+	dnskey_set = rec_dict[(fqdn, 'DNSKEY')]
+
+	dnskeys = []
+	dnskey_algorithms = set()
+
+	for rec in dnskey_set:
+		if type(rec) is oidnstypes.OI_DNSKEY_rec:
+			dnskeys.append(rec)
+			dnskey_algorithms.add(rec.algorithm)
+
+	rrset_sigs = []
+	rrset_rrs = []
+
+	for rec in rrset:
+		if type(rec) is oidnstypes.OI_RRSIG_rec:
+			rrset_sigs.append(rec)
+		else:
+			rrset_rrs.append(rec)
+
+	if len(rrset_sigs) == 0:
+		result_dict[reason_key] = "RRset does not contain RRSIG record(s)"
+		return True
+
+	if len(dnskeys) == 0:
+		result_dict[reason_key] = "No DNSKEYs found"
+		return True
+
+	succ = False
+	reason = ""
+
+	valid_algorithms = set()
+
+	for rrsig in rrset_sigs:
+		succ, reason = dnssecfn.verify_sig(rrset_rrs, dnskeys, rrsig)
+
+		if succ:
+			valid_algorithms.add(rrsig.algorithm)
+		else:
+			print('Warning: failed to validate RRSIG for {} with reason <<{}>>'.format(rrsig.fqdn, reason))
+
+	if valid_algorithms != dnskey_algorithms:
+		result_dict[reason_key] = "Did not find a valid RRSIG with every algorithm in RRset for {}".format(rrsig.fqdn)
+		return True
+
+	result_dict[verify_key] = True
+	result_dict[reason_key] = "Found at least one valid RRSIG for every algorithm in RRset for {}".format(rrsig.fqdn)
+
+	return True
 
 ##
 # Verify the signature(s) on the DNSKEY set
@@ -165,55 +228,33 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict):
 ##
 
 def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
-	result_dict["dnskey_sig_verifies"] = False
-	result_dict["dnskey_sig_reason"] = "Domain does not have a DNSKEY set"
+	dnskey_rrset = []
 
-	if (fqdn, 'DNSKEY') not in rec_dict:
-		return
-
-	dnskey_set = rec_dict[(fqdn, 'DNSKEY')]
-
-	dnskey_rrsigs = []
-	dnskey_dnskeys = []
-	dnskey_algorithms = set()
-
-	for rec in dnskey_set:
-		if type(rec) is oidnstypes.OI_RRSIG_rec:
-			dnskey_rrsigs.append(rec)
-
+	for rec in rec_dict[(fqdn, 'DNSKEY')]:
 		if type(rec) is oidnstypes.OI_DNSKEY_rec:
-			dnskey_dnskeys.append(rec)
-			dnskey_algorithms.add(rec.algorithm)
+			dnskey_rrset.append(rec)
+		if type(rec) is oidnstypes.OI_RRSIG_rec and rec.type_covered == 'DNSKEY':
+			dnskey_rrset.append(rec)
 
-	if len(dnskey_rrsigs) == 0:
-		result_dict["dnskey_sig_reason"] = "DNSKEY RRset does not contain RRSIG record(s)"
-		return
+	return verify_signatures(fqdn, rec_dict, result_dict, dnskey_rrset, "dnskey_sig_verifies", "dnskey_sig_reason")
 
-	if len(dnskey_dnskeys) == 0:
-		result_dict["dnskey_sig_reason"] = "DNSKEY RRset only contains RRSIG record(s) and no DNSKEY record(s)"
-		return
+##
+# Verify the signature(s) on the SOA record
+#
+# This test passes if there is a valid RRSIG with
+# every algorithm in the DNSKEY set.
+##
 
-	succ = False
-	reason = ""
+def check_soa_sig_verify(fqdn, rec_dict, result_dit):
+	soa_rrset = []
 
-	valid_algorithms = set()
+	for rec in rec_dict[(fqdn, 'SOA')]:
+		if type(rec) is oidnstypes.OI_SOA_rec:
+			soa_rrset.append(rec)
+		if type(rec) is oidnstypes.OI_RRSIG_rec and rec.type_covered == 'SOA':
+			soa_rrset.append(rec)
 
-	for rrsig in dnskey_rrsigs:
-		succ, reason = dnssecfn.verify_sig(dnskey_dnskeys, dnskey_dnskeys, rrsig)
-
-		if succ:
-			valid_algorithms.add(rrsig.algorithm)
-		else:
-			print('Warning: failed to validate RRSIG for DNSKEY set of {} with reason <<{}>>'.format(rrsig.fqdn, reason))
-
-	if valid_algorithms != dnskey_algorithms:
-		result_dict["dnskey_sig_reason"] = "Did not find a valid RRSIG with every algorithm for DNSKEY set of {} (expecting {}, got {})".format(rrsig.fqdn, dnskey_algorithms, valid_algorithms)
-		return
-
-	result_dict['dnskey_sig_verifies'] = True
-	result_dict['dnskey_sig_reason'] = "Found at least one valid RRSIG for every algorithm in the DNSKEY set of {}".format(rrsig.fqdn)
-
-	return True
+	return verify_signatures(fqdn, rec_dict, result_dict, soa_rrset, "soa_sig_verifies", "soa_sig_reason")
 
 ##
 # Active checks
@@ -224,6 +265,7 @@ active_checks.append(check_is_dnssec_signed)
 active_checks.append(check_has_secure_delegation)
 active_checks.append(check_dnskey_props)
 active_checks.append(check_dnskey_sig_verify)
+active_checks.append(check_soa_sig_verify)
 
 ##
 # Result dictionary
