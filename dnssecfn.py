@@ -34,8 +34,11 @@ signature_grace_time = 7200
 def str_to_owner(name):
 	owner_name = bytes()
 
+	name = name.lower().replace('\\.','\\\\')
+
 	for label in name.split('.'):
 		if len(label) > 0:
+			label = label.replace('\\\\','.')
 			owner_name += bytes.fromhex('%02X' % len(label))
 			owner_name += bytes(label, "utf8")
 
@@ -133,6 +136,10 @@ def verify_sig(rrset, dnskeyset, rrsig):
 				verify_pass = True
 				reason = "Signature validated OK"
 				break
+			else:
+				print('Warning: {}'.format(key.keytag()))
+				print('Warning: {}'.format(hash_fn.hexdigest()))
+				print('Warning: {}'.format(rsakey.encrypt(rrsig.signature, K=None)[0].hex()))
 		elif key.algorithm in [ 13, 14 ]:
 			# Perform ECDSA verification
 			vk = None
