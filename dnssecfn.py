@@ -19,6 +19,7 @@ import ecdsa					#----> for ECDSA validation
 import nacl.encoding				#--+-> for Ed25519 validation
 import nacl.signing				#--+
 import eddsa_rfc8032				#----> for Ed448 validation
+import oilog
 
 ##
 # Configuration
@@ -69,9 +70,11 @@ def verify_sig(rrset, dnskeyset, rrsig):
 
 	# Check expiration first
 	if rrsig.timestamp < rrsig.inception - signature_grace_time:
+		oilog.log_warn("Signature for {} on {} not valid yet ({} < {})".format(rrset[0].fqdn, rrsig.type_covered, rrsig.timestamp, rrsig.inception))
 		return False, "RRSIG is not yet valid (timestamp {}, inception {})".format(rrsig.timestamp, rrsig.inception)
 
 	if rrsig.timestamp > rrsig.expiration + signature_grace_time:
+		oilog.log_warn("Signature for {} on {} expired ({} > {})".format(rrset[0].fqdn, rrsig.type_covered, rrsig.timestamp, rrsig.expiration))
 		return False, "RRSIG has expired (timestamp {}, expiration {})".format(rrsig.timestamp, rrsig.expiration)
 
 	# Start by collecting DNSKEYs that match the RRSIG's key tag
@@ -85,6 +88,7 @@ def verify_sig(rrset, dnskeyset, rrsig):
 			matching_keys.append(dnskey)
 
 	if len(matching_keys) == 0:
+		oilog.log_warn("Failed to find a DNSKEY with tag {} while validating signature over {} for {}".format(rrsig.keytag, rrset[0].fqdn, rrsig.type_covered))
 		return False,"Failed to find a matching DNSKEY"
 
 	# Get the RRset in wire format first
@@ -137,9 +141,7 @@ def verify_sig(rrset, dnskeyset, rrsig):
 				reason = "Signature validated OK"
 				break
 			else:
-				print('Warning: {}'.format(key.keytag()))
-				print('Warning: {}'.format(hash_fn.hexdigest()))
-				print('Warning: {}'.format(rsakey.encrypt(rrsig.signature, K=None)[0].hex()))
+				oilog.log_warn('Failed to validate RSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 		elif key.algorithm in [ 13, 14 ]:
 			# Perform ECDSA verification
 			vk = None
@@ -157,8 +159,10 @@ def verify_sig(rrset, dnskeyset, rrsig):
 					verify_pass = True
 					reason = "Signature validated OK"
 					break
+				else:
+					oilog.log_warn('Failed to validate ECDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 			except:
-				pass
+				oilog.log_warn('Invalid ECDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 		elif key.algorithm in [ 15 ]:
 			# Perform Ed25519 verification
 			vk = nacl.signing.VerifyKey(key.eddsa_a, encoder=nacl.encoding.RawEncoder)
@@ -168,8 +172,10 @@ def verify_sig(rrset, dnskeyset, rrsig):
 					verify_pass = True
 					reason = "Signature validated OK"
 					break
+				else:
+					oilog.log_warn('Failed to validate EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 			except:
-				pass
+				oilog.log_warn('Invalid EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 		elif key.algorithm in [ 16 ]:
 			ed448_schema = eddsa_rfc8032.eddsa_obj("Ed448")
 
@@ -178,10 +184,11 @@ def verify_sig(rrset, dnskeyset, rrsig):
 					verify_pass = True
 					reason = "Signature validated OK"
 					break
+				else:
+					oilog.log_warn('Failed to validate EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 			except:
-				pass
+				oilog.log_warn('Invalid EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
 		else:
-			print('Warning: skipped signature validation of record for {} because algorithm {} is not supported'.format(rrset[0].fqdn, key.algorithm))
+			oilog.log_warn('Skipped signature validation of {} record for {} because algorithm {} is not supported'.format(rrsig.type_covered, rrset[0].fqdn, key.algorithm))
 
 	return verify_pass, reason
-

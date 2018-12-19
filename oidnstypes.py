@@ -10,6 +10,7 @@ import ipaddress
 import base64
 import base32hex
 import dnssecfn
+import oilog
 
 ##
 # Convert DNS record type string to integer value
@@ -527,7 +528,7 @@ def avro_rec_to_dnstype(avrorec):
 	elif avrorec['response_type'] == 'TLSA':
 		rec = OI_TLSA_rec(avrorec['response_name'], avrorec['tlsa_usage'], avrorec['tlsa_selector'], avrorec['tlsa_matchtype'], avrorec['tlsa_certdata'])
 	else:
-		print('Unknown record type {} for name {}'.format(avrorec['response_type'], avrorec['response_name']))
+		oilog.log_warn('Unknown record type {} for name {}'.format(avrorec['response_type'], avrorec['response_name']))
 
 	if rec is not None:
 		rec.set_timestamp(avrorec['timestamp'])

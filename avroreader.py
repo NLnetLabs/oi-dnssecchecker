@@ -10,6 +10,7 @@ import os
 import sys
 import fastavro
 import oidnstypes
+import oilog
 
 ##
 # Function to read record from the specified Avro file;
@@ -18,6 +19,7 @@ import oidnstypes
 ##
 
 def read_avro(filename, domrecs_callback):
+	recs = 0
 	avro_fd = open(filename, 'rb')
 
 	avro_reader = fastavro.reader(avro_fd)
@@ -27,6 +29,11 @@ def read_avro(filename, domrecs_callback):
 	qname = None
 
 	for record in avro_reader:
+		recs += 1
+
+		if recs % 100000 == 0:
+			oilog.log_info('Read {} records from {}'.format(recs, filename))
+
 		qname = record['query_name']
 
 		if qname.startswith('www.'):
@@ -54,6 +61,8 @@ def read_avro(filename, domrecs_callback):
 
 	if qname is not None:
 		domrecs_callback(qname, rec_dict)
+
+	oilog.log_info('Read {} records from {}'.format(recs, filename))
 
 	avro_fd.close()
 

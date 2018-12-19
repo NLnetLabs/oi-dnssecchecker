@@ -20,6 +20,7 @@ import sys
 import oidnstypes
 import hashlib
 import dnssecfn
+import oilog
 
 ##
 # Check DNSKEY properties
@@ -208,11 +209,10 @@ def verify_signatures(fqdn, rec_dict, result_dict, rrset, verify_key, reason_key
 
 		if succ:
 			valid_algorithms.add(rrsig.algorithm)
-		else:
-			print('Warning: failed to validate RRSIG for {} with reason <<{}>>'.format(rrsig.fqdn, reason))
 
 	if valid_algorithms != dnskey_algorithms:
 		result_dict[reason_key] = "Did not find a valid RRSIG with every algorithm in RRset for {}".format(rrsig.fqdn)
+		oilog.log_warn('Failed to find a valid RRSIG with every algorithm for {} RRset for {}'.format(rrsig.type_covered, rrsig.fqdn))
 		return True
 
 	result_dict[verify_key] = True
@@ -289,7 +289,5 @@ def domain_data_callback(fqdn, rec_dict):
 	for check in active_checks:
 		if not check(fqdn, rec_dict, fqdn_result_dict):
 			break
-
-	print('{}: {}'.format(fqdn, fqdn_result_dict))
 
 	result_dict[fqdn] = fqdn_result_dict
