@@ -246,6 +246,10 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict):
 ##
 
 def check_soa_sig_verify(fqdn, rec_dict, result_dit):
+	if (fqdn, 'SOA') not in rec_dict:
+		oilog.log_err("No SOA record present for {}".format(fqdn))
+		return True
+
 	soa_rrset = []
 
 	for rec in rec_dict[(fqdn, 'SOA')]:
