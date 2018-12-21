@@ -17,14 +17,12 @@ import dnssecchecks
 # Log the statistics for this Avro file
 ##
 
-def logstats():
-	stats = dnssecchecks.get_statistics()
-
-	keys = list(stats.keys())
+def logstats(logger, stats_dict):
+	keys = list(stats_dict.keys())
 	keys.sort()
 
 	for key in keys:
-		oilog.log_info('{}: {}'.format(key, stats[key]))
+		logger.log_info('{}: {}'.format(key, stats_dict[key]))
 
 ##
 # Function to read record from the specified Avro file;
@@ -32,7 +30,9 @@ def logstats():
 # contains all the records for a single name
 ##
 
-def read_avro(filename, domrecs_callback, skip = 0):
+def read_avro(filename, domrecs_callback, result_dict, stats_dict, skip = 0):
+	logger = oilog.OILog()
+	logger.open_for_avro(filename)
 	recs = 0
 	avro_fd = open(filename, 'rb')
 
@@ -43,7 +43,7 @@ def read_avro(filename, domrecs_callback, skip = 0):
 	qname = None
 
 	if skip > 0:
-		oilog.log_info("Skipping {} records".format(skip))
+		logger.log_info("Skipping {} records".format(skip))
 
 	for record in avro_reader:
 		recs += 1
@@ -52,8 +52,8 @@ def read_avro(filename, domrecs_callback, skip = 0):
 			continue
 
 		if recs % 100000 == 0:
-			oilog.log_info('Read {} records from {}'.format(recs, filename))
-			logstats()
+			logger.log_info('Read {} records from {}'.format(recs, filename))
+			logstats(logger, stats_dict)
 
 		qname = record['query_name']
 
@@ -64,13 +64,13 @@ def read_avro(filename, domrecs_callback, skip = 0):
 			qname = qname[28:]
 
 		if previous_fqdn is not None and qname != previous_fqdn:
-			domrecs_callback(previous_fqdn, rec_dict)
+			domrecs_callback(logger, previous_fqdn, rec_dict, result_dict, stats_dict)
 			rec_dict = dict()
 			previous_fqdn = qname
 		elif previous_fqdn == None:
 			previous_fqdn = qname
 
-		dnsrec = oidnstypes.avro_rec_to_dnstype(record)
+		dnsrec = oidnstypes.avro_rec_to_dnstype(logger, record)
 
 		if dnsrec is None:
 			continue
@@ -81,24 +81,11 @@ def read_avro(filename, domrecs_callback, skip = 0):
 		rec_dict[(record['query_name'], record['query_type'])] = cur_recs
 
 	if qname is not None:
-		domrecs_callback(qname, rec_dict)
+		domrecs_callback(logger, qname, rec_dict, result_dict, stats_dict)
 
-	oilog.log_info('Read {} records from {}'.format(recs, filename))
+	logger.log_info('Read {} records from {}'.format(recs, filename))
 
-	logstats()
+	logstats(logger, stats_dict)
 
 	avro_fd.close()
-
-# Test callback
-def testcallback(fqdn, rec_dict):
-	for k in rec_dict.keys():
-		print(k, len(rec_dict[k]))
-
-# Main entry point for testing only
-def main():
-	read_avro(sys.argv[1], testcallback)
-
-	return
-
-if __name__ == "__main__":
-	main()
+	logger.close()

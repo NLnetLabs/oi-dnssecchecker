@@ -9,6 +9,8 @@
 import os
 import sys
 import datetime
+import threading
+import errno
 
 ##
 # Configuration
@@ -17,49 +19,71 @@ import datetime
 oi_log_dir	= '.'
 
 ##
-# Logfile file descriptor
-##
+# Set the log output directory
+##  
 
-oi_log_fd	= None
+def mkdir_p(path):
+        try:
+                os.makedirs(path)
+        except OSError as e:
+                if e.errno != errno.EEXIST:
+                        raise
 
-##
-# Open the log
-##
+def set_log_dir(dirname):
+	global oi_log_dir
+	oi_log_dir = dirname
+	mkdir_p(oi_log_dir)
 
-def open_log(avro_name, append = False):
-	global oi_log_fd
-	avro_name = avro_name.split('/')[-1].split('.')[0]
-	log_name = '{}/{}.log'.format(oi_log_dir, avro_name)
+class OILog():
+	##
+	# Log file
+	##
 
-	if append:
-		oi_log_fd = open(log_name, 'a')
-	else:
-		oi_log_fd = open(log_name, 'w')
+	log_fd = None
+	log_lock = threading.Lock()
 
-##
-# Close the log
-##
+	##
+	# Open the log
+	##
 
-def close_log():
-	global oi_log_fd
-	if oi_log_fd is not None:
-		oi_log_fd.close()
+	def open(self, logname, append = False):
+		if append:
+			self.log_fd = open('{}/{}'.format(oi_log_dir, logname), 'a')
+		else:
+			self.log_fd = open('{}/{}'.format(oi_log_dir, logname), 'w')
+	
+	def open_for_avro(self, avro_name, append = False):
+		avro_name = avro_name.split('/')[-1].split('.')[0]
+		log_name = '{}.log'.format(avro_name)
 
-##
-# Logging functions
-##
+		self.open(log_name)
+	
+	##
+	# Close the log
+	##
+	
+	def close(self):
+		if self.log_fd is not None:
+			self.log_fd.close()
+	
+	##
+	# Logging functions
+	##
+	
+	def internal_log(self, level, msg):
+		self.log_lock.acquire()
 
-def internal_log(level, msg):
-	global oi_log_fd
-	if oi_log_fd is not None:
-		oi_log_fd.write('{} [{}] {}\n'.format(datetime.datetime.now(), level, msg))
-		oi_log_fd.flush()
+		if self.log_fd is not None:
+			self.log_fd.write('{} [{}] {}\n'.format(datetime.datetime.now(), level, msg))
+			self.log_fd.flush()
 
-def log_info(msg):
-	internal_log('I', msg)
-
-def log_warn(msg):
-	internal_log('W', msg)
-
-def log_err(msg):
-	internal_log('E', msg)
+		self.log_lock.release()
+	
+	def log_info(self, msg):
+		self.internal_log('I', msg)
+	
+	def log_warn(self, msg):
+		self.internal_log('W', msg)
+	
+	def log_err(self, msg):
+		self.internal_log('E', msg)

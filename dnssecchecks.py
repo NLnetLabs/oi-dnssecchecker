@@ -20,7 +20,6 @@ import sys
 import oidnstypes
 import hashlib
 import dnssecfn
-import oilog
 
 ##
 # Increment the specified statistics in the statistics
@@ -44,7 +43,7 @@ def inc_stat(stats_dict, statistic):
 #   2048 bits in size
 ##
 
-def check_dnskey_props(fqdn, rec_dict, result_dict, stats_dict):
+def check_dnskey_props(logger, fqdn, rec_dict, result_dict, stats_dict):
 	# Check if the domain has a DNSKEY at all
 	if (fqdn, 'DNSKEY') not in rec_dict:
 		return
@@ -113,7 +112,7 @@ def check_dnskey_props(fqdn, rec_dict, result_dict, stats_dict):
 # one DNSKEY record and one RRSIG record that covers the DNSKEY
 ##
 
-def check_is_dnssec_signed(fqdn, rec_dict, result_dict, stats_dict):
+def check_is_dnssec_signed(logger, fqdn, rec_dict, result_dict, stats_dict):
 	if (fqdn, 'DNSKEY') not in rec_dict:
 		result_dict['has_dnssec'] = False
 		inc_stat(stats_dict, 'has_dnssec_no')
@@ -146,7 +145,7 @@ def check_is_dnssec_signed(fqdn, rec_dict, result_dict, stats_dict):
 # one DNSKEY in the DNSKEY set
 ##
 
-def check_has_secure_delegation(fqdn, rec_dict, result_dict, stats_dict):
+def check_has_secure_delegation(logger, fqdn, rec_dict, result_dict, stats_dict):
 	result_dict['has_secure_delegation'] = False
 
 	# Exit early if there is no DS or no DNSKEY
@@ -189,10 +188,10 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict, stats_dict):
 				return True
 
 	if len(ds_keytags) > 0:
-		oilog.log_warn("Found no DS to match any of the DNSKEY records for {} (have a DS for keytag(s) {} and DNSKEY record(s) for keytag(s) {}".format(fqdn, ds_keytags, dnskey_keytags))
+		logger.log_warn("Found no DS to match any of the DNSKEY records for {} (have a DS for keytag(s) {} and DNSKEY record(s) for keytag(s) {}".format(fqdn, ds_keytags, dnskey_keytags))
 		inc_stat(stats_dict, 'has_ds_mismatch')
 	else:
-		#oilog.log_warn("Found no DS with hash algorithm 2 or 3 for {}".format(fqdn))
+		#logger.log_warn("Found no DS with hash algorithm 2 or 3 for {}".format(fqdn))
 		inc_stat(stats_dict, 'has_ds_no_algo_2_or_3')
 
 	return True
@@ -204,7 +203,7 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict, stats_dict):
 # every algorithm in the DNSKEY set.
 ##
 
-def verify_signatures(fqdn, rec_dict, result_dict, stats_dict, rrset, verify_key, reason_key):
+def verify_signatures(logger, fqdn, rec_dict, result_dict, stats_dict, rrset, verify_key, reason_key):
 	result_dict[verify_key] = False
 	result_dict[reason_key] = "Domain does not have a DNSKEY set"
 
@@ -248,14 +247,14 @@ def verify_signatures(fqdn, rec_dict, result_dict, stats_dict, rrset, verify_key
 	valid_algorithms = set()
 
 	for rrsig in rrset_sigs:
-		succ, reason = dnssecfn.verify_sig(rrset_rrs, dnskeys, rrsig)
+		succ, reason = dnssecfn.verify_sig(logger, rrset_rrs, dnskeys, rrsig)
 
 		if succ:
 			valid_algorithms.add(rrsig.algorithm)
 
 	if valid_algorithms != dnskey_algorithms:
 		result_dict[reason_key] = "Did not find a valid RRSIG with every algorithm in RRset for {}".format(rrsig.fqdn)
-		oilog.log_warn('Failed to find a valid RRSIG with every algorithm for {} RRset for {}'.format(rrsig.type_covered, rrsig.fqdn))
+		logger.log_warn('Failed to find a valid RRSIG with every algorithm for {} RRset for {}'.format(rrsig.type_covered, rrsig.fqdn))
 		inc_stat(stats_dict, 'rrsig_verify_{}_ko'.format(dnstype))
 		return True
 
@@ -273,7 +272,7 @@ def verify_signatures(fqdn, rec_dict, result_dict, stats_dict, rrset, verify_key
 # every algorithm in the DNSKEY set.
 ##
 
-def check_dnskey_sig_verify(fqdn, rec_dict, result_dict, stats_dict):
+def check_dnskey_sig_verify(logger, fqdn, rec_dict, result_dict, stats_dict):
 	dnskey_rrset = []
 
 	for rec in rec_dict[(fqdn, 'DNSKEY')]:
@@ -282,7 +281,7 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict, stats_dict):
 		if type(rec) is oidnstypes.OI_RRSIG_rec and rec.type_covered == 'DNSKEY':
 			dnskey_rrset.append(rec)
 
-	return verify_signatures(fqdn, rec_dict, result_dict, stats_dict, dnskey_rrset, "dnskey_sig_verifies", "dnskey_sig_reason")
+	return verify_signatures(logger, fqdn, rec_dict, result_dict, stats_dict, dnskey_rrset, "dnskey_sig_verifies", "dnskey_sig_reason")
 
 ##
 # Verify the signature(s) on the SOA record
@@ -291,9 +290,9 @@ def check_dnskey_sig_verify(fqdn, rec_dict, result_dict, stats_dict):
 # every algorithm in the DNSKEY set.
 ##
 
-def check_soa_sig_verify(fqdn, rec_dict, result_dit, stats_dict):
+def check_soa_sig_verify(logger, fqdn, rec_dict, result_dict, stats_dict):
 	if (fqdn, 'SOA') not in rec_dict:
-		oilog.log_err("No SOA record present for {}".format(fqdn))
+		logger.log_err("No SOA record present for {}".format(fqdn))
 		return True
 
 	soa_rrset = []
@@ -304,7 +303,7 @@ def check_soa_sig_verify(fqdn, rec_dict, result_dit, stats_dict):
 		if type(rec) is oidnstypes.OI_RRSIG_rec and rec.type_covered == 'SOA':
 			soa_rrset.append(rec)
 
-	return verify_signatures(fqdn, rec_dict, result_dict, stats_dict, soa_rrset, "soa_sig_verifies", "soa_sig_reason")
+	return verify_signatures(logger, fqdn, rec_dict, result_dict, stats_dict, soa_rrset, "soa_sig_verifies", "soa_sig_reason")
 
 ##
 # Active checks
@@ -318,40 +317,14 @@ active_checks.append(check_dnskey_sig_verify)
 active_checks.append(check_soa_sig_verify)
 
 ##
-# Result and statistics dictionaries
-##
-
-result_dict = dict()
-stats_dict = dict()
-
-def clear_results():
-	global result_dict
-	result_dict = dict()
-
-def get_results():
-	global result_dict
-	return result_dict
-
-def clear_statistics():
-	global stats_dict
-	stats_dict = dict()
-
-def get_statistics():
-	global stats_dict
-	return stats_dict
-
-##
 # Callback to be called from the Avro reader module
 ##
 
-def domain_data_callback(fqdn, rec_dict):
-	global result_dict
-	global stats_dict
-
+def domain_data_callback(logger, fqdn, rec_dict, result_dict, stats_dict):
 	fqdn_result_dict = dict()
 
 	for check in active_checks:
-		if not check(fqdn, rec_dict, fqdn_result_dict, stats_dict):
+		if not check(logger, fqdn, rec_dict, fqdn_result_dict, stats_dict):
 			break
 
 	result_dict[fqdn] = fqdn_result_dict
