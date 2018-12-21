@@ -11,6 +11,20 @@ import sys
 import fastavro
 import oidnstypes
 import oilog
+import dnssecchecks
+
+##
+# Log the statistics for this Avro file
+##
+
+def logstats():
+	stats = dnssecchecks.get_statistics()
+
+	keys = list(stats.keys())
+	keys.sort()
+
+	for key in keys:
+		oilog.log_info('{}: {}'.format(key, stats[key]))
 
 ##
 # Function to read record from the specified Avro file;
@@ -18,7 +32,7 @@ import oilog
 # contains all the records for a single name
 ##
 
-def read_avro(filename, domrecs_callback):
+def read_avro(filename, domrecs_callback, skip = 0):
 	recs = 0
 	avro_fd = open(filename, 'rb')
 
@@ -28,11 +42,18 @@ def read_avro(filename, domrecs_callback):
 	rec_dict = dict()
 	qname = None
 
+	if skip > 0:
+		oilog.log_info("Skipping {} records".format(skip))
+
 	for record in avro_reader:
 		recs += 1
 
+		if recs < skip:
+			continue
+
 		if recs % 100000 == 0:
 			oilog.log_info('Read {} records from {}'.format(recs, filename))
+			logstats()
 
 		qname = record['query_name']
 

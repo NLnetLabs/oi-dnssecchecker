@@ -81,6 +81,9 @@ class OI_DNS_rec:
 	def towire(self):
 		raise Exception("towire() not implemented for {}".format(type(self)))
 
+	def typestr(self):
+		return "UNKNOWN"
+
 ##
 # Class for A records
 ##
@@ -102,6 +105,9 @@ class OI_A_rec(OI_DNS_rec):
 	def towire():
 		return self.addr.packed()
 
+	def typestr(self):
+		return "A"
+
 ##
 # Class for AAAA records
 ##
@@ -113,6 +119,9 @@ class OI_AAAA_rec(OI_A_rec):
 
 	def __str__(self):
 		return '{} IN AAAA {}'.format(self.fqdn, self.addr)
+
+	def typestr(self):
+		return "AAAA"
 
 ##
 # Class for CNAME records
@@ -126,6 +135,9 @@ class OI_CNAME_rec(OI_DNS_rec):
 	def __str__(self):
 		return '{} IN CNAME {}'.format(self.fqdn, self.cname)
 
+	def typestr(self):
+		return "CNAME"
+
 ##
 # Class for DNAME records
 ##
@@ -137,6 +149,9 @@ class OI_DNAME_rec(OI_DNS_rec):
 
 	def __str__(self):
 		return '{} IN DNAME {}'.format(self.fqdn, self.dname)
+
+	def typestr(self):
+		return "DNAME"
 
 ##
 # Class for MX records
@@ -154,6 +169,9 @@ class OI_MX_rec(OI_DNS_rec):
 	def __str__(self):
 		return '{} IN MX {} {}'.format(self.fqdn, self.priority, self.addr)
 
+	def typestr(self):
+		return "MX"
+
 ##
 # Class for NS records
 ##
@@ -168,6 +186,9 @@ class OI_NS_rec(OI_DNS_rec):
 	def __str__(self):
 		return '{} IN NS {}'.format(self.fqdn, self.addr)
 
+	def typestr(self):
+		return "NS"
+
 ##
 # Class for TXT records
 ##
@@ -181,6 +202,9 @@ class OI_TXT_rec(OI_DNS_rec):
 
 	def __str__(self):
 		return '{} IN TXT {}'.format(self.fqdn, self.text)
+
+	def typestr(self):
+		return "TXT"
 
 ##
 # Class for DS records
@@ -205,6 +229,9 @@ class OI_DS_rec(OI_DNS_rec):
 	def __str__(self):
 		return self.tostr('DS')
 
+	def typestr(self):
+		return "DS"
+
 ##
 # Class for CDS records
 ##
@@ -216,6 +243,9 @@ class OI_CDS_rec(OI_DS_rec):
 
 	def __str__(self):
 		return self.tostr('CDS')
+
+	def typestr(self):
+		return "CDS"
 
 ##
 # Class for DNSKEY records
@@ -302,6 +332,9 @@ class OI_DNSKEY_rec(OI_DNS_rec):
 
 		return acc & 0xffff
 
+	def typestr(self):
+		return "DNSKEY"
+
 ##
 # Class for CDNSKEY records
 ##
@@ -313,6 +346,9 @@ class OI_CDNSKEY_rec(OI_DNSKEY_rec):
 
 	def __str__(self):
 		return self.tostr('CDNSKEY')
+
+	def typestr(self):
+		return "CDNSKEY"
 
 ##
 # Class for NSEC records
@@ -334,6 +370,9 @@ class OI_NSEC_rec(OI_DNS_rec):
 			owner_types_str = self.owner_types
 
 		return '{} IN NSEC {} {}'.format(self.fqdn, self.next_domain, owner_types_str)
+
+	def typestr(self):
+		return "NSEC"
 
 class OI_NSEC3_rec(OI_DNS_rec):
 	hash_algorithm	= None
@@ -364,6 +403,9 @@ class OI_NSEC3_rec(OI_DNS_rec):
 			owner_types_str = self.owner_types
 
 		return '{} IN NSEC3 {} {} {} {} {} {}'.format(self.fqdn, self.hash_algorithm, self.flags, self.iterations, salt_str, base32hex.b32encode(self.next_hash[1:]).upper().strip('='), owner_types_str)
+
+	def typestr(self):
+		return "NSEC3"
 
 ##
 # Class for SOA records
@@ -399,6 +441,9 @@ class OI_SOA_rec(OI_DNS_rec):
 
 		return wire
 
+	def typestr(self):
+		return "SOA"
+
 ##
 # Class for CAA records
 ##
@@ -416,6 +461,9 @@ class OI_CAA_rec(OI_DNS_rec):
 
 	def __str__(self):
 		return '{} IN CAA {} {} {}'.format(self.fqdn, self.flags, self.tag, self.value)
+
+	def typestr(self):
+		return "CAA"
 
 ##
 # Class for TLSA records
@@ -436,6 +484,9 @@ class OI_TLSA_rec(OI_DNS_rec):
 
 	def __str__(self):
 		return '{} IN TLSA {} {} {} {}'.format(self.fqdn, self.usage, self.selector, self.matchtype, self.certdata.hex())
+
+	def typestr(self):
+		return "TLSA"
 
 ##
 # Class for RRSIG records
@@ -473,6 +524,9 @@ class OI_RRSIG_rec(OI_DNS_rec):
 		rdata += dnssecfn.str_to_owner(self.signer_name)
 
 		return rdata
+
+	def typestr(self):
+		return "RRSIG"
 
 # Parse the supplied Avro record and return a DNS type
 def avro_rec_to_dnstype(avrorec):

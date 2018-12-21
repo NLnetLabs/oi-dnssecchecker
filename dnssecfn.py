@@ -88,7 +88,7 @@ def verify_sig(rrset, dnskeyset, rrsig):
 			matching_keys.append(dnskey)
 
 	if len(matching_keys) == 0:
-		oilog.log_warn("Failed to find a DNSKEY with tag {} while validating signature over {} for {}".format(rrsig.keytag, rrset[0].fqdn, rrsig.type_covered))
+		oilog.log_warn("Failed to find a DNSKEY with tag {} while validating signature over {} for {} (have keytag(s) {})".format(rrsig.keytag, rrset[0].fqdn, rrsig.type_covered,[k.keytag() for k in dnskeyset]))
 		return False,"Failed to find a matching DNSKEY"
 
 	# Get the RRset in wire format first
