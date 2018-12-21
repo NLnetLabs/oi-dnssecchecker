@@ -64,6 +64,8 @@ def check_dnskey_props(logger, fqdn, rec_dict, result_dict, stats_dict):
 	#   elliptic curve algorithm
 	result_dict["dnssec_algorithm_ok"] = False
 
+	algo_set = set()
+
 	for rec in dnskey_recs:
 		if type(rec) is not oidnstypes.OI_DNSKEY_rec:
 			continue
@@ -71,16 +73,14 @@ def check_dnskey_props(logger, fqdn, rec_dict, result_dict, stats_dict):
 		if rec.algorithm in [ 8, 10, 13, 14, 15, 16 ]:
 			result_dict["dnssec_algorithm_ok"] = True
 
-		algo_set = result_dict.get("dnssec_algorithms", set())
 		algo_set.add(rec.algorithm)
-		result_dict["dnssec_algorithms"] = algo_set
 
 		if rec.algorithm in [ 1, 5, 7, 8, 10 ]:
 			rsa_bitsize = len(rec.rsa_n) * 8
 
-			bitsize_set = result_dict.get("dnssec_rsa_bitsizes", set())
+			bitsize_set = set(result_dict.get("dnssec_rsa_bitsizes", []))
 			bitsize_set.add(rsa_bitsize)
-			result_dict["dnssec_rsa_bitsizes"] = bitsize_set
+			result_dict["dnssec_rsa_bitsizes"] = list(bitsize_set)
 			
 			if rsa_bitsize < 2048:
 				result_dict["dnssec_keysize_ok"] = False
@@ -88,10 +88,10 @@ def check_dnskey_props(logger, fqdn, rec_dict, result_dict, stats_dict):
 				if "dnssec_keysize_ok" not in result_dict:
 					result_dict["dnssec_keysize_ok"] = True
 
-	algo_set = result_dict.get("dnssec_algorithms", set())
-
 	if 13 in algo_set or 14 in algo_set or 15 in algo_set or 16 in algo_set:
 		result_dict["dnssec_keysize_ok"] = True
+
+	result_dict["dnssec_algorithms"] = list(algo_set)
 
 	if result_dict["dnssec_keysize_ok"]:
 		inc_stat(stats_dict, "dnssec_keysize_ok")

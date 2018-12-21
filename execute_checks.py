@@ -46,7 +46,9 @@ def avro_check_thread(logger, avro_queue, avro_dir, out_dir):
 		out_fd = open('{}/{}'.format(out_dir, out_name), 'w')
 
 		for k in result_dict.keys():
-			out_fd.write('{}\n'.format(json.dumps(result_dict[k])))
+			result = dict()
+			result[k] = result_dict[k]
+			out_fd.write('{}\n'.format(json.dumps(result)))
 
 		out_fd.close()
 
