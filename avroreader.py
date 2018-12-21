@@ -85,6 +85,8 @@ def read_avro(filename, domrecs_callback, skip = 0):
 
 	oilog.log_info('Read {} records from {}'.format(recs, filename))
 
+	logstats()
+
 	avro_fd.close()
 
 # Test callback

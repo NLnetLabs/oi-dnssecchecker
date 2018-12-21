@@ -190,7 +190,7 @@ def check_has_secure_delegation(fqdn, rec_dict, result_dict, stats_dict):
 
 	if len(ds_keytags) > 0:
 		oilog.log_warn("Found no DS to match any of the DNSKEY records for {} (have a DS for keytag(s) {} and DNSKEY record(s) for keytag(s) {}".format(fqdn, ds_keytags, dnskey_keytags))
-		inc_stat(stats_dict, 'has_ds_no')
+		inc_stat(stats_dict, 'has_ds_mismatch')
 	else:
 		#oilog.log_warn("Found no DS with hash algorithm 2 or 3 for {}".format(fqdn))
 		inc_stat(stats_dict, 'has_ds_no_algo_2_or_3')
