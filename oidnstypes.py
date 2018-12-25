@@ -93,6 +93,8 @@ class OI_A_rec(OI_DNS_rec):
 	asn	= None
 
 	def __init__(self, fqdn, addr_str, geo_country, asn):
+		if addr_str is None:
+			raise Exception("A record IPv6 address cannot be NULL")
 		super(OI_A_rec, self).__init__(fqdn, int(1))
 		self.addr 	= ipaddress.ip_address(addr_str)
 		self.country	= geo_country
@@ -113,6 +115,8 @@ class OI_A_rec(OI_DNS_rec):
 
 class OI_AAAA_rec(OI_A_rec):
 	def __init__(self, fqdn, addr_str, geo_country, asn):
+		if addr_str is None:
+			raise Exception("AAAA record IPv6 address cannot be NULL")
 		super(OI_AAAA_rec, self).__init__(fqdn, addr_str, geo_country, asn)
 		self.rectype = int(28)
 
@@ -128,6 +132,8 @@ class OI_AAAA_rec(OI_A_rec):
 
 class OI_CNAME_rec(OI_DNS_rec):
 	def __init__(self, fqdn, cname):
+		if cname is None:
+			raise Exception("CNAME name cannot be NULL")
 		super(OI_CNAME_rec, self).__init__(fqdn, int(5))
 		self.cname = cname
 
@@ -143,6 +149,8 @@ class OI_CNAME_rec(OI_DNS_rec):
 
 class OI_DNAME_rec(OI_DNS_rec):
 	def __init__(self, fqdn, dname):
+		if dname is None:
+			raise Exception("DNAME name cannot be NULL")
 		super(OI_DNAME_rec, self).__init__(fqdn, int(39))
 		self.dname = dname
 
@@ -161,6 +169,8 @@ class OI_MX_rec(OI_DNS_rec):
 	addr		= None
 
 	def __init__(self, fqdn, priority, addr):
+		if priority is None or addr is None:
+			raise Exception("Invalid MX record with NULL RDATA values")
 		super(OI_MX_rec, self).__init__(fqdn, int(15))
 		self.priority	= priority
 		self.addr	= addr
@@ -179,6 +189,8 @@ class OI_NS_rec(OI_DNS_rec):
 	addr	= None
 
 	def __init__(self, fqdn, addr):
+		if addr is None:
+			raise Exception("NS address cannot be NULL")
 		super(OI_NS_rec, self).__init__(fqdn, int(2))
 		self.addr = addr
 
@@ -196,6 +208,8 @@ class OI_TXT_rec(OI_DNS_rec):
 	text	= None
 
 	def __init__(self, fqdn, text):
+		if text is None:
+			text = ""
 		super(OI_TXT_rec, self).__init__(fqdn, int(16))
 		self.text = text
 
@@ -216,6 +230,8 @@ class OI_DS_rec(OI_DNS_rec):
 	digest		= None
 
 	def __init__(self, fqdn, keytag, algorithm, digest_type, digest):
+		if keytag is None or algorithm is None or digest_type is None or digest is None:
+			raise Exception("Invalid (C)DS record with NULL RDATA values")
 		super(OI_DS_rec, self).__init__(fqdn, int(43))
 		self.keytag		= int(keytag)
 		self.algorithm		= int(algorithm)
@@ -269,6 +285,8 @@ class OI_DNSKEY_rec(OI_DNS_rec):
 	wire		= None
 
 	def __init__(self, fqdn, flags, protocol, algorithm, rsa_n, rsa_e, ecc_x, ecc_y, dsa_t, dsa_q, dsa_p, dsa_g, dsa_y, eddsa_a, wire):
+		if flags is None or protocol is None or algorithm is None:
+			raise Exception("Invalid (C)DNSKEY record with NULL RDATA values")
 		super(OI_DNSKEY_rec, self).__init__(fqdn, int(48))
 		self.flags	= flags
 		self.protocol	= protocol
@@ -303,6 +321,8 @@ class OI_DNSKEY_rec(OI_DNS_rec):
 			self.eddsa_a	= bytes.fromhex(eddsa_a)
 			self.wire	= self.eddsa_a
 		else:
+			if wire is None:
+				raise Exception("(C)DNSKEY public key wire RDATA cannot be NULL for unknown algoritm {}".format(self.algorithm))
 			self.wire	= bytes.fromhex(wire)
 
 		# Compute SHA256 and SHA384 hashes
@@ -358,6 +378,8 @@ class OI_NSEC_rec(OI_DNS_rec):
 	owner_types	= None
 
 	def __init__(self, fqdn, next_domain, owner_types):
+		if next_domain is None or owner_types is None:
+			raise Exception("Invalid NSEC record with NULL RDATA values")
 		super(OI_NSEC_rec, self).__init__(fqdn, int(47))
 		self.next_domain	= next_domain
 		self.owner_types	= owner_types
@@ -382,6 +404,8 @@ class OI_NSEC3_rec(OI_DNS_rec):
 	owner_types	= None
 
 	def __init__(self, fqdn, hash_algorithm, flags, iterations, salt, next_hash, owner_types):
+		if hash_algorithm is None or flags is None or iterations is None or salt is None or next_hash is None or owner_types is None:
+			raise Exception("Invalid NSEC3 record with NULL RDATA values")
 		super(OI_NSEC3_rec, self).__init__(fqdn, int(50))
 		self.hash_algorithm	= hash_algorithm
 		self.flags		= flags
@@ -420,6 +444,8 @@ class OI_SOA_rec(OI_DNS_rec):
 	minimum	= None
 
 	def __init__(self, fqdn, mname, rname, serial, refresh, retry, expire, minimum):
+		if mname is None or rname is None or serial is None or refresh is None or retry is None or expire is None or minimum is None:
+			raise Exception("Invalid SOA record with NULL RDATA values")
 		super(OI_SOA_rec, self).__init__(fqdn, int(6))
 		self.mname	= mname
 		self.rname	= rname
@@ -453,6 +479,8 @@ class OI_CAA_rec(OI_DNS_rec):
 	value	= None
 
 	def __init__(self, fqdn, flags, tag, value):
+		if flags is None or tag is None or value is None:
+			raise Exception("Invalid CAA record with NULL RDATA values")
 		super(OI_CAA_rec, self).__init__(fqdn, int(257))
 		self.flags	= flags
 		self.tag	= tag
@@ -475,6 +503,8 @@ class OI_TLSA_rec(OI_DNS_rec):
 	certdata	= None
 
 	def __init__(self, fqdn, usage, selector, matchtype, certdata):
+		if usage is None or selector is None or matchtype is None or certdata is None:
+			raise Exception("Invalid TLSA record with NULL RDATA values")
 		super(OI_TLSA_rec, self).__init__(fqdn, int(52))
 		self.usage	= usage
 		self.selector	= selector
@@ -503,6 +533,8 @@ class OI_RRSIG_rec(OI_DNS_rec):
 	signature	= None
 
 	def __init__(self, fqdn, type_covered, algorithm, labels, original_ttl, inception, expiration, keytag, signer_name, signature):
+		if type_covered is None or algorithm is None or labels is None or original_ttl is None or inception is None or expiration is None or keytag is None or signer_name is None or signature is None:
+			raise Exception("Invalid RRSIG record with NULL RDATA values")
 		super(OI_RRSIG_rec, self).__init__(fqdn, int(46))
 		self.type_covered	= type_covered
 		self.algorithm		= int(algorithm)
@@ -546,42 +578,45 @@ def avro_rec_to_dnstype(logger, avrorec):
 
 	rec = None
 
-	if avrorec['response_type'] == 'A':
-		rec = OI_A_rec(avrorec['response_name'], avrorec['ip4_address'], avrorec['country'], avrorec['as'])
-	elif avrorec['response_type'] == 'AAAA':
-		rec = OI_AAAA_rec(avrorec['response_name'], avrorec['ip6_address'], avrorec['country'], avrorec['as'])
-	elif avrorec['response_type'] == 'CNAME':
-		rec = OI_CNAME_rec(avrorec['response_name'], avrorec['cname_name'])
-	elif avrorec['response_type'] == 'DNAME':
-		rec = OI_DNAME_rec(avrorec['response_name'], avrorec['dname_name'])
-	elif avrorec['response_type'] == 'MX':
-		rec = OI_MX_rec(avrorec['response_name'], avrorec['mx_preference'], avrorec['mx_address'])
-	elif avrorec['response_type'] == 'NS':
-		rec = OI_NS_rec(avrorec['response_name'], avrorec['ns_address'])
-	elif avrorec['response_type'] == 'TXT':
-		rec = OI_TXT_rec(avrorec['response_name'], avrorec['txt_text'])
-	elif avrorec['response_type'] == 'DS':
-		rec = OI_DS_rec(avrorec['response_name'], avrorec['ds_key_tag'], avrorec['ds_algorithm'], avrorec['ds_digest_type'], avrorec['ds_digest'])
-	elif avrorec['response_type'] == 'CDS':
-		rec = OI_CDS_rec(avrorec['response_name'], avrorec['cds_key_tag'], avrorec['cds_algorithm'], avrorec['cds_digest_type'], avrorec['cds_digest'])
-	elif avrorec['response_type'] == 'DNSKEY':
-		rec = OI_DNSKEY_rec(avrorec['response_name'], avrorec['dnskey_flags'], avrorec['dnskey_protocol'], avrorec['dnskey_algorithm'], avrorec['dnskey_pk_rsa_n'], avrorec['dnskey_pk_rsa_e'], avrorec['dnskey_pk_eccgost_x'], avrorec['dnskey_pk_eccgost_y'], avrorec['dnskey_pk_dsa_t'], avrorec['dnskey_pk_dsa_q'], avrorec['dnskey_pk_dsa_p'], avrorec['dnskey_pk_dsa_g'], avrorec['dnskey_pk_dsa_y'], avrorec['dnskey_pk_eddsa_a'], avrorec['dnskey_pk_wire'])
-	elif avrorec['response_type'] == 'CDNSKEY':
-		rec = OI_CDNSKEY_rec(avrorec['response_name'], avrorec['cdnskey_flags'], avrorec['cdnskey_protocol'], avrorec['cdnskey_algorithm'], avrorec['cdnskey_pk_rsa_n'], avrorec['cdnskey_pk_rsa_e'], avrorec['cdnskey_pk_eccgost_x'], avrorec['cdnskey_pk_eccgost_y'], avrorec['cdnskey_pk_dsa_t'], avrorec['cdnskey_pk_dsa_q'], avrorec['cdnskey_pk_dsa_p'], avrorec['cdnskey_pk_dsa_g'], avrorec['cdnskey_pk_dsa_y'], avrorec['cdnskey_pk_eddsa_a'], avrorec['cdnskey_pk_wire'])
-	elif avrorec['response_type'] == 'RRSIG':
-		rec = OI_RRSIG_rec(avrorec['response_name'], avrorec['rrsig_type_covered'], avrorec['rrsig_algorithm'], avrorec['rrsig_labels'], avrorec['rrsig_original_ttl'], avrorec['rrsig_signature_inception'], avrorec['rrsig_signature_expiration'], avrorec['rrsig_key_tag'], avrorec['rrsig_signer_name'], avrorec['rrsig_signature'])
-	elif avrorec['response_type'] == 'NSEC':
-		rec = OI_NSEC_rec(avrorec['response_name'], avrorec['nsec_next_domain_name'], avrorec['nsec_owner_rrset_types'])
-	elif avrorec['response_type'] == 'NSEC3':
-		rec = OI_NSEC3_rec(avrorec['response_name'], avrorec['nsec3_hash_algorithm'], avrorec['nsec3_flags'], avrorec['nsec3_iterations'], avrorec['nsec3_salt'], avrorec['nsec3_next_domain_name_hash'], avrorec['nsec3_owner_rrset_types'])
-	elif avrorec['response_type'] == 'SOA':
-		rec = OI_SOA_rec(avrorec['response_name'], avrorec['soa_mname'], avrorec['soa_rname'], avrorec['soa_serial'], avrorec['soa_refresh'], avrorec['soa_retry'], avrorec['soa_expire'], avrorec['soa_minimum'])
-	elif avrorec['response_type'] == 'CAA':
-		rec = OI_CAA_rec(avrorec['response_name'], avrorec['caa_flags'], avrorec['caa_tag'], avrorec['caa_value'])
-	elif avrorec['response_type'] == 'TLSA':
-		rec = OI_TLSA_rec(avrorec['response_name'], avrorec['tlsa_usage'], avrorec['tlsa_selector'], avrorec['tlsa_matchtype'], avrorec['tlsa_certdata'])
-	else:
-		logger.log_warn('Unknown record type {} for name {}'.format(avrorec['response_type'], avrorec['response_name']))
+	try:
+		if avrorec['response_type'] == 'A':
+			rec = OI_A_rec(avrorec['response_name'], avrorec['ip4_address'], avrorec['country'], avrorec['as'])
+		elif avrorec['response_type'] == 'AAAA':
+			rec = OI_AAAA_rec(avrorec['response_name'], avrorec['ip6_address'], avrorec['country'], avrorec['as'])
+		elif avrorec['response_type'] == 'CNAME':
+			rec = OI_CNAME_rec(avrorec['response_name'], avrorec['cname_name'])
+		elif avrorec['response_type'] == 'DNAME':
+			rec = OI_DNAME_rec(avrorec['response_name'], avrorec['dname_name'])
+		elif avrorec['response_type'] == 'MX':
+			rec = OI_MX_rec(avrorec['response_name'], avrorec['mx_preference'], avrorec['mx_address'])
+		elif avrorec['response_type'] == 'NS':
+			rec = OI_NS_rec(avrorec['response_name'], avrorec['ns_address'])
+		elif avrorec['response_type'] == 'TXT':
+			rec = OI_TXT_rec(avrorec['response_name'], avrorec['txt_text'])
+		elif avrorec['response_type'] == 'DS':
+			rec = OI_DS_rec(avrorec['response_name'], avrorec['ds_key_tag'], avrorec['ds_algorithm'], avrorec['ds_digest_type'], avrorec['ds_digest'])
+		elif avrorec['response_type'] == 'CDS':
+			rec = OI_CDS_rec(avrorec['response_name'], avrorec['cds_key_tag'], avrorec['cds_algorithm'], avrorec['cds_digest_type'], avrorec['cds_digest'])
+		elif avrorec['response_type'] == 'DNSKEY':
+			rec = OI_DNSKEY_rec(avrorec['response_name'], avrorec['dnskey_flags'], avrorec['dnskey_protocol'], avrorec['dnskey_algorithm'], avrorec['dnskey_pk_rsa_n'], avrorec['dnskey_pk_rsa_e'], avrorec['dnskey_pk_eccgost_x'], avrorec['dnskey_pk_eccgost_y'], avrorec['dnskey_pk_dsa_t'], avrorec['dnskey_pk_dsa_q'], avrorec['dnskey_pk_dsa_p'], avrorec['dnskey_pk_dsa_g'], avrorec['dnskey_pk_dsa_y'], avrorec['dnskey_pk_eddsa_a'], avrorec['dnskey_pk_wire'])
+		elif avrorec['response_type'] == 'CDNSKEY':
+			rec = OI_CDNSKEY_rec(avrorec['response_name'], avrorec['cdnskey_flags'], avrorec['cdnskey_protocol'], avrorec['cdnskey_algorithm'], avrorec['cdnskey_pk_rsa_n'], avrorec['cdnskey_pk_rsa_e'], avrorec['cdnskey_pk_eccgost_x'], avrorec['cdnskey_pk_eccgost_y'], avrorec['cdnskey_pk_dsa_t'], avrorec['cdnskey_pk_dsa_q'], avrorec['cdnskey_pk_dsa_p'], avrorec['cdnskey_pk_dsa_g'], avrorec['cdnskey_pk_dsa_y'], avrorec['cdnskey_pk_eddsa_a'], avrorec['cdnskey_pk_wire'])
+		elif avrorec['response_type'] == 'RRSIG':
+			rec = OI_RRSIG_rec(avrorec['response_name'], avrorec['rrsig_type_covered'], avrorec['rrsig_algorithm'], avrorec['rrsig_labels'], avrorec['rrsig_original_ttl'], avrorec['rrsig_signature_inception'], avrorec['rrsig_signature_expiration'], avrorec['rrsig_key_tag'], avrorec['rrsig_signer_name'], avrorec['rrsig_signature'])
+		elif avrorec['response_type'] == 'NSEC':
+			rec = OI_NSEC_rec(avrorec['response_name'], avrorec['nsec_next_domain_name'], avrorec['nsec_owner_rrset_types'])
+		elif avrorec['response_type'] == 'NSEC3':
+			rec = OI_NSEC3_rec(avrorec['response_name'], avrorec['nsec3_hash_algorithm'], avrorec['nsec3_flags'], avrorec['nsec3_iterations'], avrorec['nsec3_salt'], avrorec['nsec3_next_domain_name_hash'], avrorec['nsec3_owner_rrset_types'])
+		elif avrorec['response_type'] == 'SOA':
+			rec = OI_SOA_rec(avrorec['response_name'], avrorec['soa_mname'], avrorec['soa_rname'], avrorec['soa_serial'], avrorec['soa_refresh'], avrorec['soa_retry'], avrorec['soa_expire'], avrorec['soa_minimum'])
+		elif avrorec['response_type'] == 'CAA':
+			rec = OI_CAA_rec(avrorec['response_name'], avrorec['caa_flags'], avrorec['caa_tag'], avrorec['caa_value'])
+		elif avrorec['response_type'] == 'TLSA':
+			rec = OI_TLSA_rec(avrorec['response_name'], avrorec['tlsa_usage'], avrorec['tlsa_selector'], avrorec['tlsa_matchtype'], avrorec['tlsa_certdata'])
+		else:
+			logger.log_warn('Unknown record type {} for name {}'.format(avrorec['response_type'], avrorec['response_name']))
+	except Exception as e:
+		logger.log_warn('Avro record is probably missing data for record type {} for {} ({})'.format(avrorec['response_type'], avrorec['response_name'], e))
 
 	if rec is not None:
 		rec.set_timestamp(avrorec['timestamp'])
