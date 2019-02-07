@@ -103,16 +103,21 @@ def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set,
                 analysis_procs.remove(t)
                 break
 
-def load_tlsa_list(list_file):
+def load_tlsa_list(list_file, logger):
     tlsa_set = set()
 
     try:
         tlsa_fd = open(list_file, 'r')
 
+        count = 0
+
         for line in tlsa_fd:
-            tlsa_set += line.strip('\r').strip('\n')
+            tlsa_set.add(line.strip('\r').strip('\n'))
+            count += 1
 
         tlsa_fd.close()
+
+        logger.log_info('Read {} domains with TLSA records from {}'.format(count, list_file))
     except Exception as e:
         logger.log_err('Failed to load domains with TLSA records from {} ({})'.format(list_file, e))
 
@@ -136,9 +141,9 @@ def main():
     logger = oilog.OILog()
     logger.open('oi-dnssecchecks-{}.log'.format(datetime.date.today()))
 
-        # Load TLSA sets
-        tlsa_one_set = load_tlsa_list(args.tlsa_one[0])
-        tlsa_all_set = load_tlsa_list(args.tlsa_all[0])
+    # Load TLSA sets
+    tlsa_one_set = load_tlsa_list(args.tlsa_one[0], logger)
+    tlsa_all_set = load_tlsa_list(args.tlsa_all[0], logger)
 
     try:
         process_avro_files(logger, args.avro_dir[0], args.proc_count[0], args.out_dir[0], args.tld[0], tlsa_one_set, tlsa_all_set)
