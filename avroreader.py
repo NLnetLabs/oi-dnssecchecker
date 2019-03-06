@@ -30,7 +30,7 @@ def logstats(logger, stats_dict):
 # contains all the records for a single name
 ##
 
-def read_avro(filename, tld, domrecs_callback, result_dict, stats_dict, skip = 0):
+def read_avro(filename, tld, domrecs_callback, results, stats_dict, skip = 0):
     tld = '{}.'.format(tld)
     logger = oilog.OILog()
     logger.open_for_avro(filename)
@@ -66,7 +66,7 @@ def read_avro(filename, tld, domrecs_callback, result_dict, stats_dict, skip = 0
 
         if previous_fqdn is not None and qname != previous_fqdn:
             if previous_fqdn.endswith(tld):
-                domrecs_callback(logger, previous_fqdn, rec_dict, result_dict, stats_dict)
+                domrecs_callback(logger, previous_fqdn, rec_dict, results, stats_dict)
             rec_dict = dict()
             previous_fqdn = qname
         elif previous_fqdn == None:
@@ -83,7 +83,7 @@ def read_avro(filename, tld, domrecs_callback, result_dict, stats_dict, skip = 0
         rec_dict[(record['query_name'], record['query_type'])] = cur_recs
 
     if qname is not None and qname.endswith(tld):
-        domrecs_callback(logger, qname, rec_dict, result_dict, stats_dict)
+        domrecs_callback(logger, qname, rec_dict, results, stats_dict)
 
     logger.log_info('Read {} records from {}'.format(recs, filename))
 

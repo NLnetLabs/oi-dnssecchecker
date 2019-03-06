@@ -321,11 +321,12 @@ active_checks.append(check_soa_sig_verify)
 # Callback to be called from the Avro reader module
 ##
 
-def domain_data_callback(logger, fqdn, rec_dict, result_dict, stats_dict):
+def domain_data_callback(logger, fqdn, rec_dict, results, stats_dict):
 	fqdn_result_dict = dict()
+	fqdn_result_dict['domain'] = fqdn
 
 	for check in active_checks:
 		if not check(logger, fqdn, rec_dict, fqdn_result_dict, stats_dict):
 			break
 
-	result_dict[fqdn] = fqdn_result_dict
+	results.append(fqdn_result_dict)

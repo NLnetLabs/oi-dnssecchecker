@@ -29,11 +29,11 @@ def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tl
 
         logger.log_info('Starting on {}'.format(avro_name))
 
-        result_dict = dict()
+        results = []
         stats_dict = dict()
 
         try:
-            avroreader.read_avro('{}/{}'.format(avro_dir, avro_name), tld, dnssecchecks.domain_data_callback, result_dict, stats_dict)
+            avroreader.read_avro('{}/{}'.format(avro_dir, avro_name), tld, dnssecchecks.domain_data_callback, results, stats_dict)
         except Exception as e:
             logger.log_err('An exception occurred while processing {}'.format(avro_name))
             logger.log_err(e)
@@ -45,17 +45,13 @@ def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tl
 
         out_fd = open('{}/{}'.format(out_dir, out_name), 'w')
 
-        for k in result_dict.keys():
-            dom_result = result_dict[k]
+        for result in results:
+            if result['domain'] in tlsa_one_set:
+                result['tlsa_one_mx'] = True
 
-            if k in tlsa_one_set:
-                dom_result['tlsa_one_mx'] = True
+            if result['domain'] in tlsa_all_set:
+                result['tlsa_all_mx'] = True
 
-            if k in tlsa_all_set:
-                dom_result['tlsa_all_mx'] = True
-
-            result = dict()
-            result[k] = dom_result
             out_fd.write('{}\n'.format(json.dumps(result)))
 
         out_fd.close()
@@ -103,6 +99,38 @@ def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set,
                 analysis_procs.remove(t)
                 break
 
+    logger.log_info('Merging individual results')
+    tot_count = 0
+
+    result_fd = open('{}/{}-results-{}.json'.format(out_dir, tld, datetime.date.today()-datetime.timedelta(days=1)), 'w')
+    result_fd.write('[\n')
+
+    for a in avro_list:
+        json_name = a.replace('.avro','.json')
+
+        logger.log_info('Merging in {}/{}'.format(out_dir, json_name))
+
+        json_fd = open('{}/{}'.format(out_dir, json_name), 'r')
+        count = 0
+
+        for line in json_fd:
+            line = line.strip('\r').strip('\n')
+            result_fd.write('{},\n'.format(line))
+            count += 1
+
+        json_fd.close()
+        
+        logger.log_info('Merged {} results from {}/{}'.format(count, out_dir, json_name))
+
+        tot_count += count
+
+        os.unlink('{}/{}'.format(out_dir, json_name))
+
+    result_fd.write(']\n')
+    result_fd.close()
+
+    logger.log_info('Done, processed {} results'.format(tot_count))
+
 def load_tlsa_list(list_file, logger):
     tlsa_set = set()
 
@@ -139,7 +167,7 @@ def main():
     oilog.set_log_dir(args.log_dir[0])
 
     logger = oilog.OILog()
-    logger.open('oi-dnssecchecks-{}.log'.format(datetime.date.today()))
+    logger.open('oi-dnssecchecks-{}.log'.format(datetime.date.today()-datetime.timedelta(days=1)))
 
     # Load TLSA sets
     tlsa_one_set = load_tlsa_list(args.tlsa_one[0], logger)
