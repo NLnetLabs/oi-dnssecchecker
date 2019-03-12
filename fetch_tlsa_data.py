@@ -17,6 +17,7 @@ import json
 from impala.dbapi import connect
 import shutil
 import simple_config as sc
+import dateutil.parser
 
 def fail(msg, exit_code = 1):
     sys.stderr.write('{}\n'.format(msg))
@@ -53,11 +54,8 @@ def set_requestpool(cur):
     except Exception as e:
         fail('Failed to select Impala request pool ({})'.format(e))
 
-def fetch_tlsa_data():
+def fetch_tlsa_data(day):
     conn = conn_impala()
-
-    # We always process data for the day before
-    day = datetime.date.today() - datetime.timedelta(days = 1)
 
     dataset = sc.get_config_item("partner.dataset")
     tld = sc.get_config_item("partner.tld")
@@ -181,14 +179,20 @@ def main():
     argparser = argparse.ArgumentParser(description='Extract list of domains with TLSA ')
 
     argparser.add_argument('-c, --config', nargs=1, help='configuration file to use', type=str, metavar='config_file', dest='config_file', required=True)
+    argparser.add_argument('-d, --date', nargs=1, help='date to fetch data for (defaults to yesterday)', type=str, metavar='fetch_date', dest='fetch_date', required=False)
 
     args = argparser.parse_args()
 
     # Load configuration
     sc.load_config(args.config_file[0])
 
+    day = datetime.date.today() - datetime.timedelta(days=1)
+
+    if args.fetch_date is not None:
+        day = dateutil.parser.parse(args.fetch_date[0]).date()
+
     # Fetch TLSA data
-    fetch_tlsa_data()
+    fetch_tlsa_data(day)
 
 if __name__ == "__main__":
     main()
