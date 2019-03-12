@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (c) 2018 NLnet Labs
+# Copyright (c) 2018-2019 NLnet Labs
 # Licensed under a 3-clause BSD license, see LICENSE in the
 # distribution
 #
@@ -19,6 +19,7 @@ import argparse
 import threading
 import multiprocessing as mp
 import json
+import dateutil.parser
 
 def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tlsa_all_set):
     while not avro_queue.empty():
@@ -154,20 +155,34 @@ def load_tlsa_list(list_file, logger):
 def main():
     argparser = argparse.ArgumentParser(description='Perform DNSSEC checks against Avro files in a directory')
 
-    argparser.add_argument('-d, --directory', nargs=1, help='the directory containing Avro files', type=str, metavar='avro_dir', dest='avro_dir', required=True)
-    argparser.add_argument('-p, --processes', nargs=1, help='number of processes to start', type=int, default=1, metavar='proc_count', dest='proc_count', required=False)
-    argparser.add_argument('-l, --logdir', nargs=1, help='output directory for logs', type=str, default='.', metavar='log_dir', dest='log_dir', required=False)
-    argparser.add_argument('-o, --output-dir', nargs=1, help='output directory for analysis results', type=str, default='.', metavar='out_dir', dest='out_dir', required=False)
-    argparser.add_argument('-t, --tlsa-one', nargs=1, help='file containing domains with at least one MX record with a corresponding TLSA record', type=str, metavar='tlsa_one', dest='tlsa_one', required=True)
-    argparser.add_argument('-T, --tlsa-all', nargs=1, help='file containing domains where all MX records have a corresponding TLSA record', type=str, metavar='tlsa_all', dest='tlsa_all', required=True)
-    argparser.add_argument('-D, --tld', nargs=1, help='TLD to process', type=str, metavar='tld', dest='tld', required=True)
+    argparser.add_argument('-c, --config', nargs=1, help='configuration file to use', type=str, metavar='config_file', dest='config_file', required=True)
+    argparser.add_argument('-d, --date', nargs=1, help='date to process (defaults to yesterday)', type=str, metavar='process_date', dest='process_date', required=False)
 
     args = argparser.parse_args()
 
-    oilog.set_log_dir(args.log_dir[0])
+    # Load configuration
+    try:
+        sc.load_config(args.config_file[0])
+    except Exception as e:
+        print(e)
+        sys.exit(1)
+
+    oilog.set_log_dir(sc.get_config_item('log_dir'))
+
+    day = datetime.date.today() - datetime.timedelta(days=1)
+
+    if len(process_date) > 0:
+        day = dateutil.parser.parse(process_date[0]).date()
 
     logger = oilog.OILog()
-    logger.open('oi-dnssecchecks-{}.log'.format(datetime.date.today()-datetime.timedelta(days=1)))
+    logger.open('oi-dnssecchecks-{}.log'.format(day))
+
+    # Download required data
+    if not download_data(day):
+        logger.log_err('Failed to download data for {}. bailing out'.format(day))
+        sys.exit(1)
+
+    sys.exit(0)
 
     # Load TLSA sets
     tlsa_one_set = load_tlsa_list(args.tlsa_one[0], logger)
