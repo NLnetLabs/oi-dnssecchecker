@@ -16,38 +16,16 @@ import argparse
 import json
 from impala.dbapi import connect
 import shutil
-
-config = None
+import simple_config as sc
 
 def fail(msg, exit_code = 1):
     sys.stderr.write('{}\n'.format(msg))
     sys.exit(exit_code)
 
-def load_config(cfgfile):
-    global config
-
-    try:
-        config_fd = open(cfgfile, 'r')
-        config = json.load(config_fd)
-        config_fd.close()
-    except Exception as e:
-        fail('Failed to load configuration from {} ({})'.format(cfgfile, e))
-
-def get_config_item(item, default_value = None):
-    global config
-
-    if item not in config:
-        if default_value is None:
-            fail("Could not find mandatory item '{}' in the configuration".format(item))
-
-        return default_value
-
-    return config[item]
-
 def conn_impala():
     try:
-        krb_principal   = get_config_item("kerberos.principal")
-        krb_keytab      = get_config_item("kerberos.keytab")
+        krb_principal   = sc.get_config_item("kerberos.principal")
+        krb_keytab      = sc.get_config_item("kerberos.keytab")
 
         res = os.system('kinit -k -t {} {}'.format(krb_keytab, krb_principal))
 
@@ -55,8 +33,8 @@ def conn_impala():
             raise('Failed to obtain a Kerberos ticket')
 
         # OpenINTEL main node, connect over TLS with Kerberos authentication
-        oi_host = get_config_item("openintel.access_host")
-        oi_port = int(get_config_item("openintel.access_port"))
+        oi_host = sc.get_config_item("openintel.access_host")
+        oi_port = int(sc.get_config_item("openintel.access_port"))
 
         conn = connect(host=oi_host, port=oi_port, auth_mechanism='GSSAPI', use_ssl=True)
 
@@ -65,7 +43,7 @@ def conn_impala():
         fail("Failed to connect to the OpenINTEL cluster, giving up. ({})".format(e))
 
 def set_requestpool(cur):
-    pool = get_config_item("openintel.request_pool", "none")
+    pool = sc.get_config_item("openintel.request_pool", "none")
 
     if pool == "none":
         return
@@ -81,10 +59,10 @@ def fetch_tlsa_data():
     # We always process data for the day before
     day = datetime.date.today() - datetime.timedelta(days = 1)
 
-    dataset = get_config_item("partner.dataset")
-    tld = get_config_item("partner.tld")
+    dataset = sc.get_config_item("partner.dataset")
+    tld = sc.get_config_item("partner.tld")
 
-    output_dir = get_config_item("output_dir")
+    output_dir = sc.get_config_item("output_dir")
 
     try:
         os.makedirs(output_dir, exist_ok=True)
@@ -129,7 +107,7 @@ def fetch_tlsa_data():
 
     print('OK ({})'.format(now - mark))
 
-    output_name = '{}/{}-{}.txt'.format(output_dir, get_config_item('tlsa_one_mx_prefix'), day)
+    output_name = '{}/{}-{}.txt'.format(output_dir, sc.get_config_item('tlsa_one_mx_prefix'), day)
 
     try:
         output_fd = open(output_name, 'w')
@@ -187,7 +165,7 @@ def fetch_tlsa_data():
 
     print('OK ({})'.format(now - mark))
 
-    output_name = '{}/{}-{}.txt'.format(output_dir, get_config_item('tlsa_all_mx_prefix'), day)
+    output_name = '{}/{}-{}.txt'.format(output_dir, sc.get_config_item('tlsa_all_mx_prefix'), day)
 
     try:
         output_fd = open(output_name, 'w')
@@ -207,7 +185,7 @@ def main():
     args = argparser.parse_args()
 
     # Load configuration
-    load_config(args.config_file[0])
+    sc.load_config(args.config_file[0])
 
     # Fetch TLSA data
     fetch_tlsa_data()
