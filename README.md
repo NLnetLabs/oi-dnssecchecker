@@ -16,7 +16,16 @@ The assortment of scripts in this repository together can be used to check the D
 
 The scripts requires Python 3 to run, and have been tested with Python 3.7. The following dependencies need to be installed (available through 'pip'):
 
- - avro >= 1.7.7
+ - ```fastavro``` >= 0.21.14
+ - ```base32hex``` >= 1.0.2
+ - ```ecdsa``` >= 0.13
+ - ```PyNaCl``` >= 1.3.0
+
+To install all of these requirements, execute the following from the root of this repository:
+
+```
+$ pip3 install -r requirements.txt
+```
 
 ## Running
 
