@@ -163,7 +163,7 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
 
     stats_name = '{}/{}-stats-{}.json.bz2'.format(out_dir, tld, day)
 
-    stats_out = open(stats_name, w)
+    stats_out = open(stats_name, 'w')
 
     stats_out.write('{}\n'.format(json.dumps(stats_dict)))
 
