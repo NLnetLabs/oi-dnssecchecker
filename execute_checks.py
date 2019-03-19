@@ -268,7 +268,7 @@ def main():
         day = dateutil.parser.parse(args.process_date[0]).date()
 
     logger = oilog.OILog()
-    logger.open('oi-dnssecchecks-{}.log'.format(day))
+    logger.open('oi-dnssecchecks-{}-{}.log'.format(day, sc.get_config_item('tld')))
 
     # Download required data
     if not download_data(logger, day):
