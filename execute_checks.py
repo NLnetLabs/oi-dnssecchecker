@@ -137,7 +137,7 @@ def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set,
     result_fd.write(']\n')
     result_fd.close()
 
-    logger.log_info('Done, wrote {} results to '.format(tot_count, result_name))
+    logger.log_info('Done, wrote {} results to {}'.format(tot_count, result_name))
 
 def load_tlsa_list(list_file, logger):
     tlsa_set = set()
