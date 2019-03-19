@@ -54,7 +54,6 @@ def read_avro(filename, tld, domrecs_callback, results, stats_dict, skip = 0):
 
         if recs % 100000 == 0:
             logger.log_info('Read {} records from {}'.format(recs, filename))
-            logstats(logger, stats_dict)
 
         qname = record['query_name']
 

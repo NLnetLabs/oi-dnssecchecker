@@ -148,7 +148,7 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
             avro_stats = json.loads(line)
 
             for key in avro_stats:
-                stat = stats_dict.get(key)
+                stat = stats_dict.get(key, int(0))
                 stat += avro_stats[key]
                 stats_dict[key] = stat
 
@@ -170,6 +170,28 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
     stats_out.close()
 
     logger.log_info('Wrote statistics to {}'.format(stats_name))
+
+    consolidated_avro_log = '{}/{}-avrologs-{}.log.bz2'.format(sc.get_config_item('log_dir'), tld, day)
+
+    cl_fd = bz2.open(consolidated_avro_log, 'wt')
+
+    for a in avro_list:
+        log_name = '{}/{}'.format(sc.get_config_item('log_dir'), a.replace('.avro','.log'))
+
+        log_fd = open(log_name, r)
+
+        for line in log_fd:
+            cl_fd.write(line)
+
+        log_fd.close()
+
+        logger.log_info('Added {} to consolidated Avro log'.format(log_name))
+
+        os.unlink(log_name)
+
+    cl_fd.close()
+
+    logger.log_info('Consolidated Avro logs to {}'.format(consolidated_avro_log))
 
 def load_tlsa_list(list_file, logger):
     tlsa_set = set()
