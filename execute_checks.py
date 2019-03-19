@@ -113,6 +113,8 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
     result_fd = bz2.open(result_name, 'wt')
     result_fd.write('[\n')
 
+    stats_dict = dict()
+
     for a in avro_list:
         json_name = a.replace('.avro','.json')
 
@@ -134,10 +136,40 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
 
         os.unlink('{}/{}'.format(out_dir, json_name))
 
+        stats_name = a.replace('.avro', '-stats.json')
+
+        logger.log_info('Collecting stats from {}/{}'.format(out_dir, stats_name))
+
+        stats_fd = open('{}/{}'.format(out_dir, stats_name), 'r')
+
+        for line in stats_fd:
+            line = line.strip('\r').strip('\n')
+
+            avro_stats = json.loads(line)
+
+            for key in avro_stats:
+                stat = stats_dict.get(key)
+                stat += avro_stats[key]
+                stats_dict[key] = stat
+
+        stats_fd.close()
+
+        os.unlink('{}/{}'.format(out_dir, stats_name))
+
     result_fd.write(']\n')
     result_fd.close()
 
-    logger.log_info('Done, wrote {} results to '.format(tot_count, result_name))
+    logger.log_info('Done, wrote {} results to {}'.format(tot_count, result_name))
+
+    stats_name = '{}/{}-stats-{}.json.bz2'.format(out_dir, tld, day)
+
+    stats_out = open(stats_name, w)
+
+    stats_out.write('{}\n'.format(json.dumps(stats_dict)))
+
+    stats_out.close()
+
+    logger.log_info('Wrote statistics to {}'.format(stats_name))
 
 def load_tlsa_list(list_file, logger):
     tlsa_set = set()
