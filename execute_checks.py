@@ -16,10 +16,13 @@ import dnssecchecks
 import oilog
 import datetime
 import argparse
-import threading
 import multiprocessing as mp
 import json
 import dateutil.parser
+import simple_config as sc
+import requests
+import tarfile
+import bz2
 
 def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tlsa_all_set):
     while not avro_queue.empty():
@@ -67,6 +70,9 @@ def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tl
         logger.log_info('Wrote results for {} to {}/{}'.format(avro_name, out_dir, out_name))
         logger.log_info('Wrote statistics for {} to {}/{}'.format(avro_name, out_dir, stats_name))
 
+        logger.log_info('Cleaning up {}/{}'.format(avro_dir, avro_name))
+        os.unlink('{}/{}'.format(avro_dir, avro_name))
+
 def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set, tlsa_all_set):
     avro_list = []
 
@@ -103,7 +109,8 @@ def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set,
     logger.log_info('Merging individual results')
     tot_count = 0
 
-    result_fd = open('{}/{}-results-{}.json'.format(out_dir, tld, datetime.date.today()-datetime.timedelta(days=1)), 'w')
+    result_name = '{}/{}-results-{}.json.bz2'.format(out_dir, tld, datetime.date.today()-datetime.timedelta(days=1))
+    result_fd = bz2.open(result_name, 'wt')
     result_fd.write('[\n')
 
     for a in avro_list:
@@ -130,7 +137,7 @@ def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set,
     result_fd.write(']\n')
     result_fd.close()
 
-    logger.log_info('Done, processed {} results'.format(tot_count))
+    logger.log_info('Done, wrote {} results to '.format(tot_count, result_name))
 
 def load_tlsa_list(list_file, logger):
     tlsa_set = set()
@@ -152,6 +159,92 @@ def load_tlsa_list(list_file, logger):
 
     return tlsa_set
 
+def cleanup_tmp_file(tmp_name):
+    try:
+        os.unlink('{}/{}'.format(sc.get_config_item('tmp_dir'), tmp_name))
+    except:
+        pass
+
+def download_file(logger, url, out_file):
+    result = False
+
+    try:
+        out_fd = open('{}/{}'.format(sc.get_config_item('tmp_dir'), out_file), 'wb')
+    except Exception as e:
+        logger.log_err('Failed to open output file {} in temporary directory ({})'.format(out_file, e))
+        return False
+
+    try:
+        response = requests.get(url, stream = True)
+
+        if response.status_code == 200:
+            if 'Content-Length' in response.headers:
+                logger.log_info('Downloading {} bytes from {}'.format(response.headers['Content-Length'], url))
+            else:
+                logger.log_info('Downloading {}'.format(url))
+
+            downloaded_bytes = 0
+
+            for chunk in response.iter_content(1024*1024):
+                out_fd.write(chunk)
+                out_fd.flush()
+                downloaded_bytes += len(chunk)
+
+            logger.log_info('Downloaded {} bytes from {}'.format(downloaded_bytes, url))
+
+            result = True
+        else:
+            logger.log_error('GET {} returned {}'.format(url, response.status_code))
+    except Exception as e:
+        logger.log_err('Failed to start download from {} ({})'.format(url, e))
+
+    out_fd.close()
+
+    if not result:
+        cleanup_tmp_file(out_file)
+
+    return result
+
+def download_data(logger, day):
+    tar_url = 'https://data.openintel.nl/data/open-tld/{}/openintel-open-tld-{:04d}{:02d}{:02d}.tar'.format(day.year, day.year, day.month, day.day)
+    tlsa_all_url = 'https://data.openintel.nl/data/open-tld/{}/tlsa/{}-tlsa-all-mx-{}.txt'.format(day.year, sc.get_config_item('tld'), day)
+    tlsa_one_url = 'https://data.openintel.nl/data/open-tld/{}/tlsa/{}-tlsa-one-mx-{}.txt'.format(day.year, sc.get_config_item('tld'), day)
+
+    logger.log_info('Fetching Avro data from {}'.format(tar_url))
+
+    if not download_file(logger, tar_url, 'opentld-{}.tar'.format(day)):
+        return False
+
+    logger.log_info('Fetching domains with TLSA records for all MX records from {}'.format(tlsa_all_url))
+
+    if not download_file(logger, tlsa_all_url, 'tlsa-all-{}-{}.txt'.format(sc.get_config_item('tld'), day)):
+        cleanup_tmp_file('opentld-{}.tar'.format(day))
+        return False
+
+    logger.log_info('Fetching domains with TLSA records for at least one MX record from {}'.format(tlsa_one_url))
+
+    if not download_file(logger, tlsa_one_url, 'tlsa-one-{}-{}.txt'.format(sc.get_config_item('tld'), day)):
+        cleanup_tmp_file('opentld-{}.tar'.format(day))
+        cleanup_tmp_file('tlsa-all-{}-{}.txt'.format(sc.get_config_item('tld'), day))
+        return False
+
+    try:
+        untar = tarfile.open('{}/opentld-{}.tar'.format(sc.get_config_item('tmp_dir'), day))
+
+        untar.extractall(sc.get_config_item('tmp_dir'))
+
+        untar.close()
+    except Exception as e:
+        logger.log_err('Failed to unpack {}/{} ({})'.format(sc.get_config_item('tmp_dir'), 'opentld-{}.tar'.format(day), e))
+        cleanup_tmp_file('opentld-{}.tar'.format(day))
+        cleanup_tmp_file('tlsa-all-{}-{}.txt'.format(sc.get_config_item('tld'), day))
+        cleanup_tmp_file('tlsa-one-{}-{}.txt'.format(sc.get_config_item('tld'), day))
+        return False
+
+    cleanup_tmp_file('opentld-{}.tar'.format(day))
+
+    return True
+
 def main():
     argparser = argparse.ArgumentParser(description='Perform DNSSEC checks against Avro files in a directory')
 
@@ -171,25 +264,26 @@ def main():
 
     day = datetime.date.today() - datetime.timedelta(days=1)
 
-    if len(process_date) > 0:
-        day = dateutil.parser.parse(process_date[0]).date()
+    if args.process_date is not None:
+        day = dateutil.parser.parse(args.process_date[0]).date()
 
     logger = oilog.OILog()
     logger.open('oi-dnssecchecks-{}.log'.format(day))
 
     # Download required data
-    if not download_data(day):
-        logger.log_err('Failed to download data for {}. bailing out'.format(day))
+    if not download_data(logger, day):
+        logger.log_err('Failed to download data for {}, bailing out'.format(day))
         sys.exit(1)
 
-    sys.exit(0)
-
     # Load TLSA sets
-    tlsa_one_set = load_tlsa_list(args.tlsa_one[0], logger)
-    tlsa_all_set = load_tlsa_list(args.tlsa_all[0], logger)
+    tlsa_one_set = load_tlsa_list('{}/tlsa-all-{}-{}.txt'.format(sc.get_config_item('tmp_dir'), sc.get_config_item('tld'), day), logger)
+    tlsa_all_set = load_tlsa_list('{}/tlsa-one-{}-{}.txt'.format(sc.get_config_item('tmp_dir'), sc.get_config_item('tld'), day), logger)
+
+    cleanup_tmp_file('tlsa-all-{}-{}.txt'.format(sc.get_config_item('tld'), day))
+    cleanup_tmp_file('tlsa-one-{}-{}.txt'.format(sc.get_config_item('tld'), day))
 
     try:
-        process_avro_files(logger, args.avro_dir[0], args.proc_count[0], args.out_dir[0], args.tld[0], tlsa_one_set, tlsa_all_set)
+        process_avro_files(logger, sc.get_config_item('tmp_dir'), sc.get_config_item('multi_process_count', 1), sc.get_config_item('out_dir'), sc.get_config_item('tld'), tlsa_one_set, tlsa_all_set)
     except Exception as e:
         logger.log_err('Process terminated with an exception')
         logger.log_err(e)
