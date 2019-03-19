@@ -73,7 +73,7 @@ def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tl
         logger.log_info('Cleaning up {}/{}'.format(avro_dir, avro_name))
         os.unlink('{}/{}'.format(avro_dir, avro_name))
 
-def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set, tlsa_all_set):
+def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one_set, tlsa_all_set):
     avro_list = []
 
     for f in os.listdir(avro_dir):
@@ -109,7 +109,7 @@ def process_avro_files(logger, avro_dir, proc_count, out_dir, tld, tlsa_one_set,
     logger.log_info('Merging individual results')
     tot_count = 0
 
-    result_name = '{}/{}-results-{}.json.bz2'.format(out_dir, tld, datetime.date.today()-datetime.timedelta(days=1))
+    result_name = '{}/{}-results-{}.json.bz2'.format(out_dir, tld, day)
     result_fd = bz2.open(result_name, 'wt')
     result_fd.write('[\n')
 
@@ -283,7 +283,7 @@ def main():
     cleanup_tmp_file('tlsa-one-{}-{}.txt'.format(sc.get_config_item('tld'), day))
 
     try:
-        process_avro_files(logger, sc.get_config_item('tmp_dir'), sc.get_config_item('multi_process_count', 1), sc.get_config_item('out_dir'), sc.get_config_item('tld'), tlsa_one_set, tlsa_all_set)
+        process_avro_files(logger, day, sc.get_config_item('tmp_dir'), sc.get_config_item('multi_process_count', 1), sc.get_config_item('out_dir'), sc.get_config_item('tld'), tlsa_one_set, tlsa_all_set)
     except Exception as e:
         logger.log_err('Process terminated with an exception')
         logger.log_err(e)
