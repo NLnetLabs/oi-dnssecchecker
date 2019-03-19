@@ -161,7 +161,7 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
 
     logger.log_info('Done, wrote {} results to {}'.format(tot_count, result_name))
 
-    stats_name = '{}/{}-stats-{}.json.bz2'.format(out_dir, tld, day)
+    stats_name = '{}/{}-stats-{}.json'.format(out_dir, tld, day)
 
     stats_out = open(stats_name, 'w')
 
@@ -178,7 +178,7 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
     for a in avro_list:
         log_name = '{}/{}'.format(sc.get_config_item('log_dir'), a.replace('.avro','.log'))
 
-        log_fd = open(log_name, r)
+        log_fd = open(log_name, 'r')
 
         for line in log_fd:
             cl_fd.write(line)
