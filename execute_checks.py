@@ -156,6 +156,7 @@ def process_avro_files(logger, day, avro_dir, proc_count, out_dir, tld, tlsa_one
 
         os.unlink('{}/{}'.format(out_dir, stats_name))
 
+    result_fd.write('{}\n')
     result_fd.write(']\n')
     result_fd.close()
 
