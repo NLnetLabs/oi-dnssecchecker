@@ -23,6 +23,7 @@ import simple_config as sc
 import requests
 import tarfile
 import bz2
+import glob
 
 def avro_check_proc(logger, avro_queue, avro_dir, out_dir, tld, tlsa_one_set, tlsa_all_set):
     while not avro_queue.empty():
@@ -294,6 +295,11 @@ def download_data(logger, day):
         cleanup_tmp_file('opentld-{}.tar'.format(day))
         cleanup_tmp_file('tlsa-all-{}-{}.txt'.format(sc.get_config_item('tld'), day))
         cleanup_tmp_file('tlsa-one-{}-{}.txt'.format(sc.get_config_item('tld'), day))
+
+        for t in glob.glob('{}/*.avro'.format(sc.get_config_item('tmp_dir'))):
+            logger.log_info('Cleaning up {}'.format(t))
+            os.unlink(t)
+
         return False
 
     cleanup_tmp_file('opentld-{}.tar'.format(day))
