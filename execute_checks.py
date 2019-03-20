@@ -249,7 +249,7 @@ def download_file(logger, url, out_file):
 
             result = True
         else:
-            logger.log_error('GET {} returned {}'.format(url, response.status_code))
+            logger.log_err('GET {} returned {}'.format(url, response.status_code))
     except Exception as e:
         logger.log_err('Failed to start download from {} ({})'.format(url, e))
 
