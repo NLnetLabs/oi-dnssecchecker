@@ -63,7 +63,6 @@ def check_dnskey_props(logger, fqdn, rec_dict, result_dict, stats_dict):
 	#   there is also a key with an approved
 	#   elliptic curve algorithm
 	result_dict["dnssec_algorithm_ok"] = False
-	result_dict["dnssec_keysize_ok"] = False
 
 	algo_set = set()
 
