@@ -93,6 +93,9 @@ def check_dnskey_props(logger, fqdn, rec_dict, result_dict, stats_dict):
 
 	result_dict["dnssec_algorithms"] = list(algo_set)
 
+	if "dnssec_keysize_ok" not in result_dict:
+		result_dict["dnssec_keysize_ok"] = False
+
 	if result_dict["dnssec_keysize_ok"]:
 		inc_stat(stats_dict, "dnssec_keysize_ok")
 	elif not result_dict["dnssec_keysize_ok"]:
