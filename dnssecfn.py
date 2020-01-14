@@ -121,72 +121,75 @@ def verify_sig(logger, rrset, dnskeyset, rrsig):
 
 	for key in matching_keys:
 		if key.algorithm in [ 5, 7, 8, 10 ]:
-			# Perform RSA verification
-			rsakey = RSA.construct((key.rsa_n_int, key.rsa_e_int))
-			verifier = PKCS1_v1_5.new(rsakey)
-			hash_fn = None
-
-			if key.algorithm in [ 5, 7 ]:
-				hash_fn = Crypto.Hash.SHA.new()
-			elif key.algorithm in [ 8 ]:
-				hash_fn = Crypto.Hash.SHA256.new()
-			elif key.algorithm in [ 10 ]:
-				hash_fn = Crypto.Hash.SHA512.new()
-
-			hash_fn.update(sig_input_data)
-
-			if verifier.verify(hash_fn, rrsig.signature):
-				verify_pass = True
-				reason = "Signature validated OK"
-				break
-			else:
-				logger.log_warn('Failed to validate RSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
+			try:
+				# Perform RSA verification
+				rsakey = RSA.construct((key.rsa_n_int, key.rsa_e_int))
+				verifier = PKCS1_v1_5.new(rsakey)
+				hash_fn = None
+	
+				if key.algorithm in [ 5, 7 ]:
+					hash_fn = Crypto.Hash.SHA.new()
+				elif key.algorithm in [ 8 ]:
+					hash_fn = Crypto.Hash.SHA256.new()
+				elif key.algorithm in [ 10 ]:
+					hash_fn = Crypto.Hash.SHA512.new()
+	
+				hash_fn.update(sig_input_data)
+	
+				if verifier.verify(hash_fn, rrsig.signature):
+					verify_pass = True
+					reason = "Signature validated OK"
+					break
+				else:
+					logger.log_warn('Failed to validate RSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
+			except Exception as e:
+				logger.log_warn('Exception while validating RSA signature for {} (type {}) with DNSKEY with tag {} (e="{}")'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag(), e))
 		elif key.algorithm in [ 13, 14 ]:
 			# Perform ECDSA verification
 			vk = None
 			hash_fn = None
 
-			if key.algorithm == 13:
-				vk = ecdsa.VerifyingKey.from_string(key.wire, curve=ecdsa.NIST256p)
-				hash_fn = hashlib.sha256
-			elif key.algorithm == 14:
-				vk = ecdsa.VerifyingKey.from_string(key.wire, curve=ecdsa.NIST384p)
-				hash_fn = hashlib.sha384
-
 			try:
+				if key.algorithm == 13:
+					vk = ecdsa.VerifyingKey.from_string(key.wire, curve=ecdsa.NIST256p)
+					hash_fn = hashlib.sha256
+				elif key.algorithm == 14:
+					vk = ecdsa.VerifyingKey.from_string(key.wire, curve=ecdsa.NIST384p)
+					hash_fn = hashlib.sha384
+
 				if vk.verify(rrsig.signature, sig_input_data, hash_fn):
 					verify_pass = True
 					reason = "Signature validated OK"
 					break
 				else:
 					logger.log_warn('Failed to validate ECDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
-			except:
-				logger.log_warn('Invalid ECDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
+			except Exception as e:
+				logger.log_warn('Exception while validating ECDSA signature for {} (type {}) with DNSKEY with tag {} (e="{}")'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag(), e))
 		elif key.algorithm in [ 15 ]:
 			# Perform Ed25519 verification
-			vk = nacl.signing.VerifyKey(key.eddsa_a, encoder=nacl.encoding.RawEncoder)
-
 			try:
+				vk = nacl.signing.VerifyKey(key.eddsa_a, encoder=nacl.encoding.RawEncoder)
+
 				if vk.verify(sig_input_data, rrsig.signature, encoder=nacl.encoding.RawEncoder):
 					verify_pass = True
 					reason = "Signature validated OK"
 					break
 				else:
 					logger.log_warn('Failed to validate EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
-			except:
-				logger.log_warn('Invalid EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
+			except Exception as e:
+				logger.log_warn('Exception while validating EdDSA signature for {} (type {}) with DNSKEY with tag {} (e="{}")'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag(), e))
 		elif key.algorithm in [ 16 ]:
-			ed448_schema = eddsa_rfc8032.eddsa_obj("Ed448")
-
 			try:
+				ed448_schema = eddsa_rfc8032.eddsa_obj("Ed448")
+
 				if ed448_schema.verify(key.eddsa_a, sig_input_data, rrsig.signature):
 					verify_pass = True
 					reason = "Signature validated OK"
 					break
 				else:
 					logger.log_warn('Failed to validate EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
-			except:
-				logger.log_warn('Invalid EdDSA signature for {} (type {}) with DNSKEY with tag {}'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag()))
+			except Exception as e:
+				logger.log_warn('Exception while validating EdDSA signature for {} (type {}) with DNSKEY with tag {} (e="{}")'.format(rrset[0].fqdn, rrsig.type_covered, key.keytag(), e))
 		else:
 			logger.log_warn('Skipped signature validation of {} record for {} because algorithm {} is not supported'.format(rrsig.type_covered, rrset[0].fqdn, key.algorithm))
 
